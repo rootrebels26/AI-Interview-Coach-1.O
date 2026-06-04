@@ -1,0 +1,258 @@
+/* Global Tailwind and app-wide visual styles. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  @apply bg-slate-50 text-slate-900 transition-colors duration-500;
+}
+
+.dark body {
+  @apply bg-[#020617] text-slate-100;
+}
+
+/* Elite Glassmorphism */
+.glass-panel {
+  @apply bg-white/70 backdrop-blur-2xl border border-slate-200 shadow-xl;
+}
+
+.dark .glass-panel {
+  @apply bg-slate-900/40 border-white/10 shadow-none;
+}
+
+.glass-card {
+  @apply bg-white backdrop-blur-3xl border border-slate-200 shadow-[0_20px_40px_-12px_rgba(0,0,0,0.05)];
+}
+
+.dark .glass-card {
+  @apply bg-slate-900/60 border-white/20 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)];
+}
+
+/* Background Advanced Gradients */
+.bg-gradient-mesh {
+  background: 
+    radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 100% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(236, 72, 153, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(56, 189, 248, 0.05) 0%, transparent 50%),
+    #f8fafc;
+  background-attachment: fixed;
+}
+
+.dark .bg-gradient-mesh {
+  background: 
+    radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 100% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 1) 0%, transparent 100%),
+    radial-gradient(circle at 100% 100%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(56, 189, 248, 0.1) 0%, transparent 50%),
+    #020617;
+  background-attachment: fixed;
+}
+
+.neural-grid {
+  background-image: radial-gradient(rgba(56, 189, 248, 0.1) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.feature-grid {
+  background-image:
+    linear-gradient(to right, rgba(14, 165, 233, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(14, 165, 233, 0.12) 1px, transparent 1px);
+  background-size: 82px 82px;
+  mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+}
+
+.dark .feature-grid {
+  background-image:
+    linear-gradient(to right, rgba(125, 211, 252, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(125, 211, 252, 0.08) 1px, transparent 1px);
+}
+
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+  filter: contrast(150%) brightness(1000%);
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.dark .grain-overlay {
+  filter: contrast(150%) brightness(10%);
+  opacity: 0.15;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-100% / 3)); }
+}
+
+.marquee-track {
+  animation: marquee 24s linear infinite;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+.marquee-logo {
+  flex: 0 0 auto;
+}
+
+.hover-glow {
+  @apply transition-all duration-500;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 40px rgba(56, 189, 248, 0.2);
+}
+
+.dark .hover-glow:hover {
+  box-shadow: 0 0 60px rgba(56, 189, 248, 0.3);
+}
+
+/* Pro Typography */
+.text-pro-gradient {
+  @apply bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 bg-clip-text text-transparent font-black;
+}
+
+.dark .text-pro-gradient {
+  @apply from-white via-sky-100 to-sky-300;
+}
+
+/* Text Clarity Helpers */
+.text-primary {
+  @apply text-slate-900 dark:text-white font-bold;
+}
+
+.text-secondary {
+  @apply text-slate-600 dark:text-slate-400 font-medium;
+}
+
+.text-muted {
+  @apply text-slate-500 dark:text-slate-500;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-800 rounded-full hover:bg-slate-700 transition-colors;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(56, 189, 248, 0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.8s ease forwards;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.9s ease forwards;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.9s ease forwards;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: pulseGlow 2.4s ease-in-out infinite;
+}
+
+.animation-delay-200 {
+  animation-delay: 0.2s;
+}
+
+.animation-delay-300 {
+  animation-delay: 0.3s;
+}
+
+.animation-delay-400 {
+  animation-delay: 0.4s;
+}
+
+.animation-delay-500 {
+  animation-delay: 0.5s;
+}
