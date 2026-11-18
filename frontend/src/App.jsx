@@ -1,61 +1,30 @@
-// Application router that connects URLs to page-level screens.
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
-import './styles/index.css'
-import Home from "./pages/Home"
-import SubjectSelection from "./pages/SubjectSelection"
-import Interview from "./pages/Interview"
-import History from "./pages/History"
-import Resume from "./pages/Resume"
-import Progress from "./pages/Progress"
-import Login from "./pages/Login"
-import Signup from "./pages/Signup"
-import Admin from "./pages/Admin"
-import Feedback from "./pages/Feedback"
-import AboutUs from "./pages/aboutus"
-import Navbar from "./components/Navbar"
-import ProtectedRoute from "./components/ProtectedRoute"
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Header from './components/Header';
+import Home from './pages/Home';
+import Setup from './pages/Setup';
+import Resume from './pages/Resume';
+import Interview from './pages/Interview';
+import Report from './pages/Report';
+import { InterviewProvider } from './context/InterviewContext';
 
-function AppRoutes() {
-  const { pathname } = useLocation()
-  const isHome = pathname === "/"
-
+export default function App() {
   return (
-    <main className="min-h-screen transition-colors duration-300 bg-gradient-mesh">
-      <div className={isHome ? "w-full pt-8" : "container mx-auto px-4 py-8"}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about-us" element={<AboutUs />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          
-          <Route element={<ProtectedRoute userOnly />}>
-            <Route path="/subject-selection" element={<SubjectSelection />} />
-            <Route path="/interview" element={<Interview />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/resume" element={<Resume />} />
-            <Route path="/progress" element={<Progress />} />
-          </Route>
-
-          <Route element={<ProtectedRoute />}>
-            <Route path="/feedback/:id" element={<Feedback />} />
-          </Route>
-
-          <Route element={<ProtectedRoute adminOnly />}>
-            <Route path="/admin" element={<Admin />} />
-          </Route>
-        </Routes>
-      </div>
-    </main>
-  )
+    <InterviewProvider>
+      <Router>
+        <div className="min-h-screen bg-[#f5f9ff] text-[#0b1220] dark:bg-[#07111f] dark:text-slate-100 flex flex-col font-sans transition-colors duration-300">
+          <Header />
+          <main className="flex-1">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/setup" element={<Setup />} />
+              <Route path="/resume" element={<Resume />} />
+              <Route path="/interview" element={<Interview />} />
+              <Route path="/report" element={<Report />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+        </div>
+      </Router>
+    </InterviewProvider>
+  );
 }
-
-function App() {
-  return (
-    <BrowserRouter>
-      <Navbar />
-      <AppRoutes />
-    </BrowserRouter>
-  )
-}
-
-export default App

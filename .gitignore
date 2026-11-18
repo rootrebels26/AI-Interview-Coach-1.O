@@ -1,38 +1,83 @@
-# Root tooling
+# =========================================================================
+# Standalone AI Interview Coach - Git Ignore
+# =========================================================================
+
+# Local legacy / development feature scratch directories
+AI-Interview-feature/
+AI-Interview-feature/*
+
+# Secrets & Environment Variables (NEVER commit live secrets)
+.env
+.env.*
+*.env
+backend/.env
+frontend/.env
+backend/.env.local
+frontend/.env.local
+!*.env.example
+
+# Node & Dependencies
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.turbo
+
+# Python & Caches
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*/*/*/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Python Virtual Environments
 .venv/
 venv/
-node_modules/
-
-# Backend
+ENV/
+env/
+backend/.venv/
 backend/venv/
-backend/.env
-backend/__pycache__/
-backend/**/__pycache__/
-backend/instance/
-backend/*.db
-backend/.pytest_cache/
-backend/*.pyc
-backend/**/*.pyc
+backend/env/
 
-# Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.env
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
-frontend/.vscode/
-frontend/.idea/
-frontend/*.suo
-frontend/*.ntvs*
-frontend/*.njsproj
-frontend/*.sln
-frontend/*.sw?
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
 
-# OS files
+# OS & Editor Files
 .DS_Store
 Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*.log
+*.tmp
+scratch/
