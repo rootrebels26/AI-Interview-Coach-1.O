@@ -362,6 +362,13 @@ export default function AIInterviewer({
         if (!invalidNamePattern.test(firstName.toLowerCase()) && !questionText.includes(firstName)) {
           questionText = questionText.replace(/^(Welcome to [^,!?]+)[!.]?/i, `$1, ${firstName}!`);
         }
+      } else if (questionNumber > 1 && candidateName) {
+        // Enforce zero repetitive name callouts on subsequent questions (no "Sagnik, Sagnik, Sagnik")
+        const firstName = candidateName.split(' ')[0];
+        if (!invalidNamePattern.test(firstName.toLowerCase())) {
+          const nameRegex = new RegExp(`^(?:hi|hello|hey|welcome|thanks|thank you)?\\s*,?\\s*${firstName}\\s*[,!:\\-]\\s*`, 'i');
+          questionText = questionText.replace(nameRegex, '');
+        }
       }
       setLastSpokenText(questionText);
 

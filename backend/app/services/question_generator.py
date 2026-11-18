@@ -451,18 +451,26 @@ def generate_interview_questions(
             spoken = ai_q.get("spoken_prompt") or q_text
             concepts = ai_q.get("expected_concepts") or [role, difficulty, part["title"], highlights["primary_lang"]]
 
-            # ALWAYS ensure Question 1 has the personalized welcome greeting with candidate name if available
+            # STRICT RULE 1: Question 1 is ALWAYS the authentic professional introduction icebreaker
             if global_q_num == 1:
                 first_name = highlights.get("first_name", "")
                 welcome_prefix = f"Welcome to {company}, {first_name}!" if first_name else f"Welcome to {company}!"
+                q_text = (
+                    f"{welcome_prefix} I'm excited to connect with you today for this {role} interview. "
+                    f"To kick off our discussion, could you please introduce yourself, walk me through your technical background, "
+                    f"and highlight what projects or technologies you've been working on recently?"
+                )
+                spoken = q_text
+                concepts = [role, "Professional Introduction", "Technical Background", "Engineering Projects"]
 
-                if not q_text.lower().startswith(welcome_prefix.lower()):
-                    if re.match(rf"^welcome to {re.escape(company)}[!.,]?", q_text, re.IGNORECASE):
-                        q_text = re.sub(rf"^welcome to {re.escape(company)}[!.,]?", welcome_prefix, q_text, flags=re.IGNORECASE)
-                    elif re.match(r"^welcome[!.,]?", q_text, re.IGNORECASE):
-                        q_text = re.sub(r"^welcome[!.,]?", welcome_prefix, q_text, flags=re.IGNORECASE)
-                    else:
-                        q_text = f"{welcome_prefix} {q_text}"
+            # STRICT RULE 2: For Question 2 onwards, NEVER repeat candidate name ("sagnik sagnik sagnik")
+            elif highlights.get("first_name"):
+                fn = highlights.get("first_name")
+                q_text = re.sub(rf"^(?:hi|hello|hey|welcome|thanks|thank you)?\s*,?\s*{re.escape(fn)}\s*[,!:\-]\s*", "", q_text, flags=re.IGNORECASE)
+                q_text = re.sub(rf"\b{re.escape(fn)}\b", "", q_text, flags=re.IGNORECASE).strip()
+                q_text = re.sub(r"^[,\.\s!-]+", "", q_text)
+                if q_text:
+                    q_text = q_text[0].upper() + q_text[1:]
                 spoken = q_text
 
             roadmap_questions.append({

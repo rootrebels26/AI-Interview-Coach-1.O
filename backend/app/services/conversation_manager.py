@@ -174,8 +174,8 @@ def is_acknowledgment_or_ready(text: str) -> bool:
     acknowledgments = {"ok", "okay", "yes", "yeah", "yep", "sure", "fine", "ready", "start", "k", "cool", "got it", "understood", "right", "alright"}
     return len(words) <= 3 and all(w in acknowledgments for w in words)
 
-def sanitize_interviewer_speech(text: str, question_text: str) -> str:
-    """Permanently cleans out canned therapy clichés or patronizing repetitive phrases."""
+def sanitize_interviewer_speech(text: str, question_text: str = "", candidate_name: str = "") -> str:
+    """Permanently cleans out canned therapy clichés, patronizing repetitive phrases, and repetitive name vocatives."""
     if not text:
         return "Could you elaborate on the architecture and core trade-offs you considered?"
     
@@ -194,6 +194,17 @@ def sanitize_interviewer_speech(text: str, question_text: str) -> str:
     for pat in banned_patterns:
         cleaned = re.sub(pat, "", cleaned, flags=re.IGNORECASE)
     
+    # Strip repetitive candidate name callouts (e.g. "Thanks Sagnik! Sagnik, how...", "Sagnik, could you...")
+    if candidate_name:
+        fn = candidate_name.strip().split()[0]
+        if len(fn) >= 2 and fn.lower() not in {"candidate", "online", "developer", "engineer", "user"}:
+            # Remove duplicated names like "Sagnik, Sagnik"
+            cleaned = re.sub(rf"\b{re.escape(fn)}\s*,\s*{re.escape(fn)}\b", fn, cleaned, flags=re.IGNORECASE)
+            # Remove leading vocatives like "Thanks Sagnik,", "Sagnik,", "Great Sagnik,"
+            cleaned = re.sub(rf"^(?:thanks|thank you|great|good|right|hello|hi|hey|ok|okay)?\s*,?\s*{re.escape(fn)}\s*[,!:\-]\s*", "", cleaned, flags=re.IGNORECASE)
+            # Remove dangling vocatives like ", Sagnik." or ", Sagnik,"
+            cleaned = re.sub(rf"\b,\s*{re.escape(fn)}\b", "", cleaned, flags=re.IGNORECASE)
+
     # Strip any dangling punctuation or whitespace from the start
     cleaned = re.sub(r"^[,\.\s!-]+", "", cleaned).strip()
     cleaned = re.sub(r"^(and|so|well)\s+", "", cleaned, flags=re.IGNORECASE).strip()
@@ -369,12 +380,21 @@ def process_conversational_turn(
     is_hesitant = request_hint or detect_candidate_hesitation(candidate_text)
     prof = get_role_profile(role)
 
+    # Detect candidate name if present in opening question to enforce zero name-repetition in follow-ups
+    detected_candidate_name = ""
+    welcome_match = re.search(r"Welcome to [^,!?]+,\s*([A-Za-z]+)[!.]?", question_text)
+    if welcome_match:
+        cand_candidate = welcome_match.group(1).strip()
+        if cand_candidate.lower() not in {"candidate", "online", "developer", "engineer", "user"}:
+            detected_candidate_name = cand_candidate
+
     system_prompt = (
         f"You are a real human Senior Principal Engineer at {company}. You are sitting across the table from a {role} candidate in a live technical interview.\n\n"
         f"HOW YOU SPEAK:\n"
         f"- You sound like a real person, not an AI. Use natural fillers sparingly: 'Interesting...', 'Right, so...', 'That's a solid choice.', 'I see—'\n"
         f"- You react to what the candidate ACTUALLY said. If they mentioned Flask, talk about Flask. If they mentioned PostgreSQL indexes, ask about those indexes.\n"
         f"- You NEVER repeat or restate the original question. You NEVER say 'skip the pleasantries', 'take a deep breath', 'think through this together', or 'No problem!'.\n"
+        f"- STRICT NAME ETIQUETTE (ZERO NAME REPETITION): Do NOT address the candidate by name in intermediate turns or follow-up questions. In real interviews, engineers do NOT repeat 'Sagnik', 'Sagnik' every turn. Speak directly ('That makes sense. When scaling that...', 'Interesting approach. How do you handle concurrency?'). NEVER prefix with 'Thanks [Name]' or '[Name], could you...'.\n"
         f"- Keep your reply to 1-2 SHORT spoken sentences + ONE focused follow-up question. Total under 40 words.\n\n"
         f"HOW YOU INTERVIEW:\n"
         f"- You explore the candidate's answer layer by layer, like peeling an onion. First acknowledge what they said, then drill into ONE specific technical detail.\n"
@@ -406,6 +426,7 @@ INSTRUCTIONS:
 - React naturally to what the candidate said. Acknowledge their specific technical choices.
 - Ask ONE sharp follow-up that digs deeper into their answer (production edge cases, failure modes, scaling).
 - Do NOT restate the original question. Do NOT mention or preview the next question.
+- STRICT NAME RULE: Do NOT say the candidate's name. Speak directly without repetitive name callouts.
 - Keep should_advance=false unless the candidate has thoroughly explored this topic across multiple turns.
 {f'- The candidate seems hesitant. Give a concrete scenario or example to help them think.' if is_hesitant else ''}
 
@@ -436,10 +457,10 @@ Return ONLY valid JSON:
         intent = parsed.get("intent", "probe_deeper")
         is_satisfied = bool(parsed.get("is_satisfied", False))
         should_advance = bool(parsed.get("should_advance", False))
-        interviewer_reply = sanitize_interviewer_speech(parsed.get("interviewer_reply", "").strip(), question_text)
+        interviewer_reply = sanitize_interviewer_speech(parsed.get("interviewer_reply", "").strip(), question_text, candidate_name=detected_candidate_name)
         hint = parsed.get("hint")
         if hint:
-            hint = sanitize_interviewer_speech(hint, question_text)
+            hint = sanitize_interviewer_speech(hint, question_text, candidate_name=detected_candidate_name)
             if hint.strip().lower() == interviewer_reply.strip().lower():
                 hint = None
 

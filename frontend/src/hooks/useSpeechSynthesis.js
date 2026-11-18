@@ -1,27 +1,103 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+/**
+ * High-quality Natural Voice Selector.
+ * Prioritizes modern Neural/Natural voices (Edge/Windows Natural, Google Studio, Apple Enhanced)
+ * over outdated robotic desktop synthesizers.
+ */
+function pickBestNaturalVoice(availableVoices) {
+  if (!availableVoices || availableVoices.length === 0) return null;
+
+  // 1. Edge / Windows Online Neural Natural Voices (most human-like on Windows)
+  const neuralVoice = availableVoices.find(
+    (v) =>
+      v.lang.startsWith('en') &&
+      (v.name.includes('Natural') || v.name.includes('Neural')) &&
+      !v.name.includes('Desktop')
+  );
+  if (neuralVoice) return neuralVoice;
+
+  // 2. Google High-Fidelity Voices (Chrome)
+  const googleVoice = availableVoices.find(
+    (v) =>
+      v.name.includes('Google US English') ||
+      v.name.includes('Google UK English Female') ||
+      v.name.includes('Google UK English Male')
+  );
+  if (googleVoice) return googleVoice;
+
+  // 3. Apple Enhanced Voices (Safari / macOS)
+  const enhancedVoice = availableVoices.find(
+    (v) =>
+      v.lang.startsWith('en') &&
+      (v.name.includes('Enhanced') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Karen'))
+  );
+  if (enhancedVoice) return enhancedVoice;
+
+  // 4. Any clean modern English (US/GB) voice (excluding robotic SAPI5 desktop voices if possible)
+  const modernEnUS = availableVoices.find(
+    (v) => (v.lang === 'en-US' || v.lang === 'en-GB') && !v.name.includes('Desktop')
+  );
+  if (modernEnUS) return modernEnUS;
+
+  // 5. Fallback to any English voice
+  const anyEnglish = availableVoices.find((v) => v.lang.startsWith('en'));
+  return anyEnglish || availableVoices[0];
+}
+
+/**
+ * Phonetically cleans text to sound warm, natural, and conversational when spoken.
+ */
+function prepareTextForNaturalSpeech(text) {
+  if (!text) return '';
+
+  return (
+    text
+      // Remove code blocks and inline code fences
+      .replace(/```[\s\S]*?```/g, 'Code example omitted.')
+      .replace(/`([^`]+)`/g, '$1')
+      // Remove question prefixes (e.g. "Q1:", "Question 2:")
+      .replace(/\bQ\d+[:.]?\s*/gi, '')
+      .replace(/\bQuestion\s+\d+[:.]?\s*/gi, '')
+      // Smooth technical abbreviations for clear pronunciation
+      .replace(/\bCI\/CD\b/gi, 'C I C D')
+      .replace(/\bAPI\b/g, 'A P I')
+      .replace(/\bAPIs\b/g, 'A P I s')
+      .replace(/\bUI\/UX\b/gi, 'U I U X')
+      .replace(/\bNoSQL\b/gi, 'No S Q L')
+      .replace(/\bRESTful\b/gi, 'Rest ful')
+      .replace(/\bvs\b/gi, 'versus')
+      .replace(/—/g, ', ')
+      // Clean markdown tags, asterisks, brackets, and bullet symbols
+      .replace(/[*_#~>•\-\[\]\(\)]/g, ' ')
+      // Remove non-ascii emojis
+      .replace(/[^\x00-\x7F]/g, '')
+      // Collapse whitespace
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+}
+
 export default function useSpeechSynthesis() {
   const [voices, setVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const lastSpokenTextRef = useRef('');
+  const keepAliveTimerRef = useRef(null);
 
-  // Load available browser voices
+  // Load available browser voices with high-quality preference
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
     const updateVoices = () => {
       const available = window.speechSynthesis.getVoices();
-      if (available.length > 0) {
+      if (available && available.length > 0) {
         setVoices(available);
-        // Default to high quality English voice (Google US English, Samantha, Microsoft Zira/David)
-        const preferred =
-          available.find((v) => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural'))) ||
-          available.find((v) => v.lang.startsWith('en-US')) ||
-          available.find((v) => v.lang.startsWith('en')) ||
-          available[0];
-        setSelectedVoice(preferred);
+        const best = pickBestNaturalVoice(available);
+        if (best) {
+          setSelectedVoice(best);
+        }
       }
     };
 
@@ -29,9 +105,19 @@ export default function useSpeechSynthesis() {
     window.speechSynthesis.onvoiceschanged = updateVoices;
   }, []);
 
+  const clearKeepAlive = () => {
+    if (keepAliveTimerRef.current) {
+      clearInterval(keepAliveTimerRef.current);
+      keepAliveTimerRef.current = null;
+    }
+  };
+
   const stop = useCallback(() => {
+    clearKeepAlive();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+      try {
+        window.speechSynthesis.cancel();
+      } catch (_) {}
       setIsSpeaking(false);
     }
   }, []);
@@ -42,53 +128,59 @@ export default function useSpeechSynthesis() {
         return;
       }
 
-      try {
-        window.speechSynthesis.cancel();
-      } catch (_) {}
+      stop();
 
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
+      const naturalText = prepareTextForNaturalSpeech(text);
+      if (!naturalText) return;
 
       lastSpokenTextRef.current = text;
 
-      // Clean markdown tags, emojis, and code fences for clear voice delivery
-      const cleanText = text
-        .replace(/```[\s\S]*?```/g, 'Code example omitted.')
-        .replace(/[*_#`~>]/g, '')
-        .replace(/[^\x00-\x7F]/g, '') // remove non-ascii emojis
-        .trim();
+      const utterance = new SpeechSynthesisUtterance(naturalText);
 
-      if (!cleanText) return;
-
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-
-      // Choose best natural English voice available
+      // Select voice: user choice -> best natural voice -> default
       const currentVoices = window.speechSynthesis.getVoices();
-      const voiceToUse = selectedVoice ||
-        currentVoices.find((v) => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Online'))) ||
-        currentVoices.find((v) => v.lang.startsWith('en')) ||
-        currentVoices[0];
-
+      const voiceToUse = selectedVoice || pickBestNaturalVoice(currentVoices) || currentVoices[0];
       if (voiceToUse) {
         utterance.voice = voiceToUse;
       }
-      utterance.rate = 1.05;
+
+      // Natural Human Pacing: 0.98 is relaxed, clear, and confident (avoiding rushed 1.05+ chipmunk tempo)
+      utterance.rate = 0.98;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = (e) => {
-        console.warn('SpeechSynthesis error:', e);
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        // Chrome bug workaround: keep synthesis alive for utterances longer than 14 seconds
+        clearKeepAlive();
+        keepAliveTimerRef.current = setInterval(() => {
+          if (window.speechSynthesis && window.speechSynthesis.speaking) {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+          } else {
+            clearKeepAlive();
+          }
+        }, 12000);
+      };
+
+      utterance.onend = () => {
+        clearKeepAlive();
         setIsSpeaking(false);
       };
 
-      // Bugfix for Chrome: resume synthesis before speaking
-      window.speechSynthesis.resume();
+      utterance.onerror = (e) => {
+        clearKeepAlive();
+        console.warn('Natural SpeechSynthesis note:', e);
+        setIsSpeaking(false);
+      };
+
+      // Resume context if paused before speaking
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
       window.speechSynthesis.speak(utterance);
     },
-    [voiceEnabled, selectedVoice]
+    [voiceEnabled, selectedVoice, stop]
   );
 
   const replay = useCallback(() => {
@@ -97,9 +189,10 @@ export default function useSpeechSynthesis() {
     }
   }, [speak]);
 
-  // Clean up on unmount
+  // Clean up timers on unmount
   useEffect(() => {
     return () => {
+      clearKeepAlive();
       stop();
     };
   }, [stop]);

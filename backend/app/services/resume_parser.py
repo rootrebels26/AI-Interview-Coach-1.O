@@ -68,6 +68,129 @@ def extract_text_from_docx(docx_bytes: bytes) -> str:
                 text_content.append(" | ".join(row_text))
     return "\n".join(text_content).strip()
 
+# Comprehensive non-name terms blacklist to reject headers, job roles, technologies, and projects
+NON_NAME_TERMS = {
+    # Resume meta
+    "resume", "curriculum", "vitae", "cv", "page", "phone", "email", "contact", "address",
+    "github", "linkedin", "portfolio", "summary", "profile", "objective", "about", "declaration",
+    # Section titles
+    "experience", "education", "skills", "projects", "project", "work", "history", "employment",
+    "certifications", "certificate", "achievements", "awards", "activities", "publications", "interests",
+    # Job roles & engineering titles
+    "developer", "engineer", "architect", "designer", "analyst", "intern", "internship", "student",
+    "fresher", "consultant", "specialist", "administrator", "scientist", "programmer", "manager", "lead",
+    "software", "hardware", "frontend", "backend", "fullstack", "full-stack", "web", "mobile", "cloud",
+    "devops", "data", "ai", "ml", "system", "systems", "application", "platform",
+    # Academic & institutions
+    "university", "college", "school", "institute", "academy", "department", "faculty", "bachelor",
+    "master", "degree", "diploma", "b.tech", "m.tech", "btech", "mtech", "bca", "mca", "b.sc", "m.sc",
+    "phd", "cgpa", "gpa", "board", "higher", "secondary", "semester", "year",
+    # Technologies & project words
+    "online", "viva", "examination", "exam", "portal", "management", "website", "service", "app",
+    "dashboard", "database", "python", "flask", "django", "fastapi", "react", "node", "javascript",
+    "technologies", "technical", "tools", "frameworks", "languages", "libraries", "architecture"
+}
+
+def extract_name_from_email_prefix(email_str: str) -> str:
+    m = re.search(r'([a-zA-Z0-9_\.\+-]+)@', email_str)
+    if not m:
+        return ""
+    user = m.group(1).lower()
+    user = re.sub(r'\d+$', '', user)
+    parts = re.split(r'[\._-]', user)
+    parts = [p for p in parts if len(p) >= 2 and p.isalpha() and p not in NON_NAME_TERMS]
+    if 1 <= len(parts) <= 3:
+        return " ".join(p.capitalize() for p in parts)
+    return ""
+
+def extract_candidate_name_robustly(text: str) -> str:
+    """
+    Extracts the candidate's actual human person name from resume text with maximum accuracy.
+    Uses multi-tiered extraction:
+    1. Explicit labeled name regex (e.g. 'Name: Sagnik Sen', 'Candidate: Sagnik Sen')
+    2. Header block inspection (first 15 lines, checking word counts, uppercase/titlecase, non-name terms)
+    3. Email corroboration (cross-referencing with email username)
+    4. Fast LLM extraction fallback (when AI provider is active)
+    """
+    lines = [line.strip() for line in text.split("\n") if line.strip()]
+    if not lines:
+        return ""
+
+    header_preview = "\n".join(lines[:15])
+    email_match = re.search(r'[a-zA-Z0-9_\.\+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-\.]+', header_preview)
+    email_name = extract_name_from_email_prefix(email_match.group(0)) if email_match else ""
+
+    # Tier 1: Explicit labels
+    label_match = re.search(
+        r'(?:^|\n)\s*(?:Candidate\s*Name|Full\s*Name|Name)\s*[:\-]\s*([A-Za-z\s\.\'-]{2,35})',
+        header_preview,
+        re.IGNORECASE
+    )
+    if label_match:
+        words = label_match.group(1).strip().split()
+        if 1 <= len(words) <= 4 and not any(w.lower().strip(".,-") in NON_NAME_TERMS for w in words):
+            return " ".join(w.capitalize() for w in words)
+
+    # Tier 2: Structural Header Line Inspection
+    candidate_found = ""
+    for line in lines[:12]:
+        clean = line.strip()
+        # Drop lines with contact info, urls, emails, bullets
+        if any(char in clean for char in ["@", "http", "www.", ".com", "+", "|", "/", "\\", ":", ";"]):
+            continue
+        if re.search(r'\d{3,}', clean):
+            continue
+        if clean.startswith(("•", "-", "*", "–", "—")):
+            continue
+
+        words = clean.split()
+        if not (1 <= len(words) <= 4):
+            continue
+
+        if not re.match(r"^[A-Za-z\s\.\'-]+$", clean) or len(clean) < 2 or len(clean) > 35:
+            continue
+
+        clean_words_lower = [w.lower().strip(".,-") for w in words]
+        if any(w in NON_NAME_TERMS for w in clean_words_lower):
+            continue
+
+        candidate_found = " ".join(w.capitalize() for w in words)
+        break
+
+    if candidate_found:
+        if len(candidate_found.split()) == 1 and email_name and len(email_name.split()) > 1 and candidate_found.lower() in email_name.lower():
+            return email_name
+        return candidate_found
+
+    if email_name and len(email_name.split()) >= 2:
+        return email_name
+
+    # Tier 3: Fast AI Name Extraction Fallback (if Groq/Gemini is configured)
+    try:
+        from app.services.ai_provider import call_ai, extract_json_from_text
+        prompt = (
+            "Extract ONLY the candidate's actual human full name from this resume header block.\n"
+            "Return valid JSON: {\"name\": \"First Last\"}.\n"
+            "If no human person name exists, return {\"name\": \"\"}.\n"
+            f"Header:\n{header_preview[:600]}"
+        )
+        ai_reply = call_ai(
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=40,
+            temperature=0.1,
+            response_format={"type": "json_object"}
+        )
+        parsed = extract_json_from_text(ai_reply)
+        ai_name = parsed.get("name", "").strip()
+        ai_words = ai_name.split()
+        if 1 <= len(ai_words) <= 4 and not any(w.lower().strip(".,-") in NON_NAME_TERMS for w in ai_words):
+            if re.match(r"^[A-Za-z\s\.\'-]+$", ai_name) and len(ai_name) >= 2:
+                return " ".join(w.capitalize() for w in ai_words)
+    except Exception as e:
+        print(f"[Resume AI Name Extraction Note]: {e}")
+
+    return candidate_found or email_name or ""
+
 def parse_resume_deterministic(text: str) -> ResumeData:
     """Parses raw resume text into structured fields without fabricating missing info."""
     lines = [line.strip() for line in text.split("\n") if line.strip()]
@@ -77,30 +200,8 @@ def parse_resume_deterministic(text: str) -> ResumeData:
             summary="Resume file appeared empty or unscannable."
         )
 
-    # 1. Candidate Name (heuristic: first clean non-header line that looks like a real person's name)
-    candidate_name = ""
-    non_name_terms = {
-        "resume", "curriculum", "vitae", "cv", "page", "phone", "email", "@", "http",
-        "github", "linkedin", "portfolio", "summary", "profile", "contact",
-        "experience", "education", "skills", "projects", "project", "portal",
-        "system", "online", "examination", "viva", "application", "platform",
-        "website", "service", "app", "dashboard", "manager", "management",
-        "developer", "engineer", "analyst", "intern", "university", "college",
-        "school", "institute", "bachelor", "master", "degree", "technologies",
-        "technical", "frontend", "backend", "fullstack", "software", "data", "cloud"
-    }
-    for line in lines[:8]:
-        clean = line.strip()
-        # Handle "Name: Sagneek Sen" or "Candidate Name: Sagneek Sen"
-        clean = re.sub(r'^(name|candidate\s*name|candidate)\s*[:\-]\s*', '', clean, flags=re.IGNORECASE).strip()
-        words = clean.split()
-        if 1 <= len(words) <= 4 and not any(kw in clean.lower() for kw in non_name_terms):
-            # Check that it contains valid name characters (letters, spaces, periods, hyphens)
-            if re.match(r"^[A-Za-z\s\.\'-]+$", clean) and len(clean) >= 2:
-                clean_words_lower = [w.lower().strip(".,-") for w in words]
-                if not any(w in non_name_terms for w in clean_words_lower):
-                    candidate_name = clean
-                    break
+    # 1. Candidate Name (Ultra-accurate multi-tiered extractor)
+    candidate_name = extract_candidate_name_robustly(text)
 
     # 2. Languages & Skills extraction
     lowered_full = text.lower()
