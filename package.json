@@ -1,0 +1,13 @@
+{
+  "name": "ai-interview-coach",
+  "version": "1.0.0",
+  "description": "Production-ready AI Interview Coach with Voice, Webcam Proctoring, and Dynamic Rubric Evaluations",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "frontend": "npm --prefix frontend run dev",
+    "backend": "python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload"
+  }
+}

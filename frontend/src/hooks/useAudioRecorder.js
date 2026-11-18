@@ -15,51 +15,13 @@ export default function useAudioRecorder() {
   const timerRef = useRef(null);
   const whisperTimeoutRef = useRef(null);
 
-  // Initialize SpeechRecognition if available in browser
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-
-        recognition.onresult = (event) => {
-          // Strictly drop any speech recognition events if recording is stopped or inactive
-          if (!isRecordingRef.current) {
-            return;
-          }
-          let currentTranscript = '';
-          for (let i = 0; i < event.results.length; i++) {
-            currentTranscript += event.results[i][0].transcript + ' ';
-          }
-          if (isRecordingRef.current) {
-            setTranscript(currentTranscript.trim());
-          }
-        };
-
-        recognition.onerror = (event) => {
-          console.warn('SpeechRecognition error:', event.error);
-          if (event.error === 'not-allowed') {
-            setMicError('Microphone permission was denied. Please allow microphone access or type your answer.');
-          }
-        };
-
-        recognitionRef.current = recognition;
-      }
+  const cleanupRecognition = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (_) {}
+      recognitionRef.current = null;
     }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (whisperTimeoutRef.current) clearTimeout(whisperTimeoutRef.current);
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch (_) {}
-      }
-    };
   }, []);
 
   const clearTranscript = useCallback(() => {
@@ -67,13 +29,22 @@ export default function useAudioRecorder() {
       clearTimeout(whisperTimeoutRef.current);
       whisperTimeoutRef.current = null;
     }
+    cleanupRecognition();
     audioChunksRef.current = [];
     setTranscript('');
     setRecordingDuration(0);
-  }, []);
+  }, [cleanupRecognition]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (whisperTimeoutRef.current) clearTimeout(whisperTimeoutRef.current);
+      cleanupRecognition();
+    };
+  }, [cleanupRecognition]);
 
   const startRecording = useCallback(async () => {
-    // Immediately cancel any AI speech synthesis so the microphone never transcribes the AI's voice!
+    // Instantly cancel any AI speech synthesis so the mic never catches the interviewer's voice
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
@@ -83,6 +54,9 @@ export default function useAudioRecorder() {
       clearTimeout(whisperTimeoutRef.current);
       whisperTimeoutRef.current = null;
     }
+
+    // Always clean up any prior recognition instance so previous transcripts never leak
+    cleanupRecognition();
 
     setMicError('');
     audioChunksRef.current = [];
@@ -112,11 +86,45 @@ export default function useAudioRecorder() {
         setRecordingDuration((prev) => prev + 1);
       }, 1000);
 
-      // 3. Start Browser SpeechRecognition if supported
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.start();
-        } catch (_) {}
+      // 3. Create a fresh SpeechRecognition session for each recording to avoid accumulated transcripts
+      if (typeof window !== 'undefined') {
+        const SpeechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = 'en-US';
+
+          recognition.onresult = (event) => {
+            if (!isRecordingRef.current) return;
+            let currentTranscript = '';
+            for (let i = 0; i < event.results.length; i++) {
+              currentTranscript += event.results[i][0].transcript + ' ';
+            }
+            if (isRecordingRef.current) {
+              setTranscript(currentTranscript.trim());
+            }
+          };
+
+          recognition.onerror = (event) => {
+            console.warn('SpeechRecognition error:', event.error);
+            if (event.error === 'not-allowed') {
+              setMicError('Microphone permission was denied. Please allow microphone access or type your answer.');
+            }
+          };
+
+          recognition.onend = () => {
+            // Natural conclusion
+          };
+
+          recognitionRef.current = recognition;
+          try {
+            recognition.start();
+          } catch (e) {
+            console.warn('SpeechRecognition start notice:', e);
+          }
+        }
       }
     } catch (err) {
       console.error('Microphone access failed:', err);
@@ -126,7 +134,7 @@ export default function useAudioRecorder() {
         'Microphone is unavailable or access was denied. You can comfortably type your answer in the box below.'
       );
     }
-  }, []);
+  }, [cleanupRecognition]);
 
   const stopRecording = useCallback(async (options = {}) => {
     const { skipWhisper = false, cancel = false } = options || {};
@@ -150,6 +158,7 @@ export default function useAudioRecorder() {
           recognitionRef.current.stop();
         }
       } catch (_) {}
+      recognitionRef.current = null;
     }
 
     const recorder = mediaRecorderRef.current;

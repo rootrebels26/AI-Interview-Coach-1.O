@@ -204,6 +204,7 @@ export default function Interview() {
         answers: currentAns,
         questions: questions,
         sessionId: interviewSession?.sessionId,
+        concludedAt: Date.now(),
       },
     });
   };

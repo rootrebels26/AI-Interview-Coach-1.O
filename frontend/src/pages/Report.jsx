@@ -10,35 +10,35 @@ export default function Report() {
   const location = useLocation();
   const { finalReport, setFinalReport, interviewSession, config, resetSession } = useInterview();
 
-  const [isLoading, setIsLoading] = useState(!finalReport);
+  const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
-  const initializedRef = useRef(false);
+  const initializedSessionRef = useRef(null);
 
   const stateEvals = location.state?.evaluations;
   const stateAnswers = location.state?.answers;
   const stateQuestions = location.state?.questions;
   const stateSessionId = location.state?.sessionId;
+  const concludedAt = location.state?.concludedAt;
 
-  const hasNewSessionData = Boolean(
-    (stateEvals && stateEvals.length > 0) ||
-    (stateAnswers && stateAnswers.length > 0) ||
-    stateSessionId
-  );
+  // Has explicit fresh navigation state from the interview session
+  const isFreshInterviewArrival = Boolean(location.state);
 
   useEffect(() => {
-    // If cached finalReport exists AND no new session evaluations were submitted, use cached report
-    if (finalReport && !hasNewSessionData) {
+    // If we came directly from an interview conclusion, always generate a fresh report
+    const currentRunKey = `${stateSessionId || 'sess'}-${concludedAt || 'now'}`;
+
+    if (!isFreshInterviewArrival && finalReport) {
       setIsLoading(false);
       return;
     }
 
-    if (!interviewSession && !config && !stateEvals && !stateAnswers) {
+    if (!interviewSession && !config && !stateEvals && !stateAnswers && !isFreshInterviewArrival) {
       setIsLoading(false);
       return;
     }
 
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    if (initializedSessionRef.current === currentRunKey) return;
+    initializedSessionRef.current = currentRunKey;
 
     const fetchReport = async () => {
       setIsLoading(true);
