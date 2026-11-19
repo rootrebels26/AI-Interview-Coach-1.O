@@ -97,14 +97,13 @@ export default function InterviewReport({ report, onRestart, onHome }) {
             <span>Practise Again</span>
           </button>
 
-          <button
-            type="button"
-            onClick={onHome}
+          <a
+            href="https://www.nityacloudtech.com/"
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-2 text-xs font-semibold text-neutral-600 dark:text-slate-400 hover:text-blue-900 dark:hover:text-white transition-colors cursor-pointer"
           >
             <Home className="h-3.5 w-3.5" />
             <span>Home</span>
-          </button>
+          </a>
         </div>
       </div>
 

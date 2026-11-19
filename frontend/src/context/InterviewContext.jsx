@@ -57,6 +57,34 @@ export function InterviewProvider({ children }) {
     }
   });
 
+  const AUTH_STORAGE_KEY = 'nitya_interview_auth';
+
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    try {
+      return sessionStorage.getItem(AUTH_STORAGE_KEY) === 'granted';
+    } catch (_) {
+      return false;
+    }
+  });
+
+  const authenticate = (password) => {
+    if (password === 'NityaCloudtech#2024') {
+      setIsAuthenticated(true);
+      try {
+        sessionStorage.setItem(AUTH_STORAGE_KEY, 'granted');
+      } catch (_) {}
+      return true;
+    }
+    return false;
+  };
+
+  const lockApp = () => {
+    setIsAuthenticated(false);
+    try {
+      sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    } catch (_) {}
+  };
+
   // Apply theme class to document root
   useEffect(() => {
     try {
@@ -113,6 +141,9 @@ export function InterviewProvider({ children }) {
         theme,
         setTheme,
         toggleTheme,
+        isAuthenticated,
+        authenticate,
+        lockApp,
       }}
     >
       {children}

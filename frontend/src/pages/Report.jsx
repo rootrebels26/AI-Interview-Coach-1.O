@@ -110,7 +110,7 @@ export default function Report() {
 
   const handleHome = () => {
     resetSession();
-    navigate('/');
+    window.location.href = 'https://www.nityacloudtech.com/';
   };
 
   if (isLoading) {

@@ -7,13 +7,13 @@ export default function Setup() {
     <div className="mx-auto max-w-4xl px-4 py-8 sm:py-12">
       {/* Back button */}
       <div className="mb-6">
-        <Link
-          to="/"
+        <a
+          href="https://www.nityacloudtech.com/"
           className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-600 dark:text-slate-400 hover:text-blue-900 dark:hover:text-white transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           <span>Back to Home</span>
-        </Link>
+        </a>
       </div>
 
       {/* Header card */}
