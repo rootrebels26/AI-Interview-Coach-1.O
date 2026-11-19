@@ -56,7 +56,7 @@ export default function Header() {
           <div className="flex items-center gap-2 sm:gap-4">
             <a
               href="https://www.nityacloudtech.com/"
-              className="rounded-xl px-3.5 py-1.5 text-xs font-bold text-blue-900 dark:text-cyan-300 bg-blue-50 dark:bg-blue-500/15 border border-blue-200/80 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/25 transition flex items-center gap-1 shadow-sm"
+              className="rounded-xl px-3 py-1.5 text-xs font-semibold text-neutral-600 dark:text-slate-300 hover:text-blue-900 dark:hover:text-white transition flex items-center gap-1"
             >
               <span>Home</span>
             </a>
