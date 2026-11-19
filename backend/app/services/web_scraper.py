@@ -53,6 +53,14 @@ AUTHENTIC_ROLE_BENCHMARKS = {
         "What are the trade-offs between Star Schema and Snowflake Schema in modern columnar data warehouses?",
         "How do you handle late-arriving data in event-time windowed stream processing?",
     ],
+    "microsoft fabric data engineer": [
+        "How does Microsoft Fabric OneLake implement the 'single copy of data' architecture using Delta Parquet, and how does Direct Lake mode in Power BI eliminate dataset import refreshes?",
+        "Explain the Medallion Architecture (Bronze -> Silver -> Gold) implementation within Microsoft Fabric Lakehouses and Warehouses.",
+        "How do you decide between a Fabric Lakehouse (Spark/Delta) and a Fabric Warehouse (T-SQL engine) for analytical workloads?",
+        "How do you orchestrate data pipelines using Fabric Data Factory pipelines versus Dataflows Gen2, and when should each be used?",
+        "How do you optimize PySpark notebooks in Fabric using V-Order indexing and native Delta Lake compaction?",
+        "How does Fabric Real-Time Intelligence and KQL database handle high-frequency streaming events compared to batch Delta ingestion?",
+    ],
     "fabric engineer": [
         "How does Microsoft Fabric OneLake implement the 'single copy of data' architecture using Delta Parquet, and how does Direct Lake mode in Power BI eliminate dataset import refreshes?",
         "Explain the Medallion Architecture (Bronze -> Silver -> Gold) implementation within Microsoft Fabric Lakehouses and Warehouses.",

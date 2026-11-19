@@ -95,6 +95,13 @@ def extract_candidate_highlights(resume: Optional[Any]) -> Dict[str, Any]:
     }
 
 ROLE_PROFILES = {
+    "microsoft fabric data engineer": {
+        "core_pillars": "Microsoft Fabric OneLake, Medallion Architecture (Bronze/Silver/Gold), Direct Lake mode, PySpark V-Order compaction, and Lakehouse vs Warehouse design",
+        "internals_focus": "Delta Parquet transaction logs, OneLake indexing, and memory allocation between Analysis Services and Spark pools",
+        "crisis_focus": "a silent data corruption incident or pipeline timeout where a Gold layer report displayed erroneous metrics under an executive deadline",
+        "scale_focus": "a 20x surge in streaming transaction ingestion into OneLake with multiple concurrent Power BI Direct Lake consumers",
+        "philosophy_focus": "governing a single source of truth across diverse analytical engines (Spark vs T-SQL vs KQL) without data duplication",
+    },
     "fabric engineer": {
         "core_pillars": "Microsoft Fabric OneLake, Medallion Architecture (Bronze/Silver/Gold), Direct Lake mode, PySpark V-Order compaction, and Lakehouse vs Warehouse design",
         "internals_focus": "Delta Parquet transaction logs, OneLake indexing, and memory allocation between Analysis Services and Spark pools",

@@ -33,7 +33,7 @@ const COMPANIES = [
 const JOB_ROLES = [
   'Software Engineer',
   'Data Engineer',
-  'Fabric Engineer',
+  'Microsoft Fabric Data Engineer',
   'Python Developer',
   'Java Developer',
   'Frontend Developer',

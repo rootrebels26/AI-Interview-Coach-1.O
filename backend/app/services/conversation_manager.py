@@ -16,6 +16,12 @@ from app.services.question_generator import get_role_profile
 
 # Clues, tips, and scaffolding heuristics for specialized roles when candidates hesitate or need hints
 ROLE_HINTS_DATABASE = {
+    "microsoft fabric data engineer": [
+        "Think about OneLake's Delta Parquet format and how Direct Lake mode accesses parquet files directly without import refreshes.",
+        "Consider how the Medallion architecture separates raw landing (Bronze) from cleansed data (Silver) and aggregated business marts (Gold).",
+        "Consider Lakehouse versus Warehouse: Lakehouse uses Spark/Delta Lake for data science, while Warehouse uses the T-SQL engine for relational analytics.",
+        "Think about V-Order compaction in Fabric: it optimizes sorting and dictionary encoding for blazing fast Power BI reads.",
+    ],
     "fabric engineer": [
         "Think about OneLake's Delta Parquet format and how Direct Lake mode accesses parquet files directly without import refreshes.",
         "Consider how the Medallion architecture separates raw landing (Bronze) from cleansed data (Silver) and aggregated business marts (Gold).",
