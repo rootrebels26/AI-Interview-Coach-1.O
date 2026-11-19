@@ -87,8 +87,41 @@ export default function AIInterviewer({
     setVoiceEnabled,
     speak,
     replay,
+    testVoice,
+    voices,
+    selectedVoice,
+    selectVoiceByName,
+    gender,
+    setGender,
     stop: stopSpeaking,
   } = useSpeechSynthesis();
+
+  const [interviewerPersona, setInterviewerPersona] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('nitya_interviewer_persona') || 'alex';
+    }
+    return 'alex';
+  });
+
+  const handlePersonaChange = useCallback(
+    (newPersona, shouldSpeakConfirmation = true) => {
+      setInterviewerPersona(newPersona);
+      try {
+        localStorage.setItem('nitya_interviewer_persona', newPersona);
+      } catch (_) {}
+      const targetGender = newPersona === 'alex' ? 'male' : 'female';
+      setGender(targetGender);
+      if (shouldSpeakConfirmation && voiceEnabled) {
+        testVoice(
+          newPersona === 'alex'
+            ? 'Hello, I am Alex Vance. I will be your interviewer.'
+            : 'Hello, I am Elena Rostova. I will be your interviewer.',
+          targetGender
+        );
+      }
+    },
+    [setGender, testVoice, voiceEnabled]
+  );
 
   const {
     isCameraActive,
@@ -1096,6 +1129,8 @@ export default function AIInterviewer({
               spokenPrompt={lastSpokenText || currentQuestion?.spoken_prompt}
               partTitle={currentPartTitle}
               partProgress={currentPartProgress}
+              personaKey={interviewerPersona}
+              onPersonaChange={handlePersonaChange}
               onReplay={() => replay(lastSpokenText)}
             />
 
@@ -1817,6 +1852,79 @@ export default function AIInterviewer({
                   <span>Midnight Mode</span>
                 </button>
               </div>
+            </div>
+
+            {/* INTERVIEWER PERSONA & VOICE SELECTOR */}
+            <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                Interviewer Persona & Spoken Voice
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handlePersonaChange('alex')}
+                  className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    interviewerPersona === 'alex'
+                      ? 'border-cyan-500 bg-cyan-500/15 text-cyan-400 shadow-sm ring-1 ring-cyan-400'
+                      : 'border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Bot className="h-4 w-4 text-cyan-400" />
+                  <div className="text-left leading-tight">
+                    <p className="font-bold">Alex Vance</p>
+                    <p className="text-[10px] font-medium text-slate-400">Male Voice</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePersonaChange('elena')}
+                  className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    interviewerPersona === 'elena'
+                      ? 'border-purple-500 bg-purple-500/15 text-purple-400 shadow-sm ring-1 ring-purple-400'
+                      : 'border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Bot className="h-4 w-4 text-purple-400" />
+                  <div className="text-left leading-tight">
+                    <p className="font-bold">Elena Rostova</p>
+                    <p className="text-[10px] font-medium text-slate-400">Female Voice</p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Installed Browser Voice Dropdown */}
+              {voices && voices.length > 0 && (
+                <div className="pt-1.5 space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>Synthesizer Voice:</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        testVoice(
+                          interviewerPersona === 'alex'
+                            ? 'Hello! I am Alex Vance. I will be your interviewer.'
+                            : 'Hello! I am Elena Rostova. I will be your interviewer.'
+                        )
+                      }
+                      className="text-cyan-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                    >
+                      <Volume2 className="h-3 w-3" />
+                      <span>Test Voice Audio</span>
+                    </button>
+                  </div>
+                  <select
+                    value={selectedVoice?.name || ''}
+                    onChange={(e) => selectVoiceByName(e.target.value)}
+                    className="w-full text-xs rounded-xl px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  >
+                    {voices.map((v) => (
+                      <option key={v.name} value={v.name}>
+                        {v.name} ({v.lang})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* AI Speech Voice Toggle */}

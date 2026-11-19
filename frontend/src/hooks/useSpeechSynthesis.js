@@ -1,48 +1,100 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+// Keywords to identify male voices across Windows, Edge, Chrome, macOS, Android
+const MALE_KEYWORDS = [
+  'guy',
+  'christopher',
+  'david',
+  'mark',
+  'george',
+  'ryan',
+  'liam',
+  'daniel',
+  'alex',
+  'fred',
+  'oliver',
+  'stefan',
+  'james',
+  'brian',
+  'andrew',
+  'male',
+  'uk english male',
+];
+
+// Keywords to identify female voices across Windows, Edge, Chrome, macOS, Android
+const FEMALE_KEYWORDS = [
+  'jenny',
+  'aria',
+  'ava',
+  'zira',
+  'sonia',
+  'emma',
+  'michelle',
+  'samantha',
+  'victoria',
+  'karen',
+  'moira',
+  'tessa',
+  'cathy',
+  'serena',
+  'female',
+  'uk english female',
+  'google us english',
+];
+
 /**
- * High-quality Natural Voice Selector.
- * Prioritizes modern Neural/Natural voices (Edge/Windows Natural, Google Studio, Apple Enhanced)
- * over outdated robotic desktop synthesizers.
+ * Robust gender-specific voice selector.
+ * Finds high-fidelity Natural/Neural/Google/Apple voices matching the requested gender.
  */
-function pickBestNaturalVoice(availableVoices) {
+export function pickVoiceForGender(availableVoices, gender = 'male') {
   if (!availableVoices || availableVoices.length === 0) return null;
 
-  // 1. Edge / Windows Online Neural Natural Voices (most human-like on Windows)
-  const neuralVoice = availableVoices.find(
-    (v) =>
-      v.lang.startsWith('en') &&
-      (v.name.includes('Natural') || v.name.includes('Neural')) &&
-      !v.name.includes('Desktop')
+  const englishVoices = availableVoices.filter(
+    (v) => v.lang && v.lang.toLowerCase().startsWith('en')
   );
-  if (neuralVoice) return neuralVoice;
+  const voicePool = englishVoices.length > 0 ? englishVoices : availableVoices;
 
-  // 2. Google High-Fidelity Voices (Chrome)
-  const googleVoice = availableVoices.find(
-    (v) =>
-      v.name.includes('Google US English') ||
-      v.name.includes('Google UK English Female') ||
-      v.name.includes('Google UK English Male')
-  );
-  if (googleVoice) return googleVoice;
+  const isMale = gender === 'male';
+  const targetKeywords = isMale ? MALE_KEYWORDS : FEMALE_KEYWORDS;
+  const oppositeKeywords = isMale ? FEMALE_KEYWORDS : MALE_KEYWORDS;
 
-  // 3. Apple Enhanced Voices (Safari / macOS)
-  const enhancedVoice = availableVoices.find(
-    (v) =>
-      v.lang.startsWith('en') &&
-      (v.name.includes('Enhanced') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Karen'))
-  );
-  if (enhancedVoice) return enhancedVoice;
+  // 1. High-Quality Online Natural / Neural voice matching target gender
+  const neuralMatch = voicePool.find((v) => {
+    const nameLower = v.name.toLowerCase();
+    const hasTarget = targetKeywords.some((kw) => nameLower.includes(kw));
+    const hasOpposite = oppositeKeywords.some((kw) => nameLower.includes(kw));
+    const isNatural = nameLower.includes('natural') || nameLower.includes('neural');
+    return hasTarget && !hasOpposite && isNatural;
+  });
+  if (neuralMatch) return neuralMatch;
 
-  // 4. Any clean modern English (US/GB) voice (excluding robotic SAPI5 desktop voices if possible)
-  const modernEnUS = availableVoices.find(
-    (v) => (v.lang === 'en-US' || v.lang === 'en-GB') && !v.name.includes('Desktop')
-  );
-  if (modernEnUS) return modernEnUS;
+  // 2. Google High-Fidelity Voice matching target gender
+  const googleMatch = voicePool.find((v) => {
+    const nameLower = v.name.toLowerCase();
+    const hasTarget = targetKeywords.some((kw) => nameLower.includes(kw));
+    const hasOpposite = oppositeKeywords.some((kw) => nameLower.includes(kw));
+    return hasTarget && !hasOpposite && nameLower.includes('google');
+  });
+  if (googleMatch) return googleMatch;
 
-  // 5. Fallback to any English voice
-  const anyEnglish = availableVoices.find((v) => v.lang.startsWith('en'));
-  return anyEnglish || availableVoices[0];
+  // 3. Apple Enhanced or OS standard voice matching target gender (e.g. David / Zira)
+  const standardMatch = voicePool.find((v) => {
+    const nameLower = v.name.toLowerCase();
+    const hasTarget = targetKeywords.some((kw) => nameLower.includes(kw));
+    const hasOpposite = oppositeKeywords.some((kw) => nameLower.includes(kw));
+    return hasTarget && !hasOpposite;
+  });
+  if (standardMatch) return standardMatch;
+
+  // 4. Fallback: Any voice without opposite keywords
+  const looseMatch = voicePool.find((v) => {
+    const nameLower = v.name.toLowerCase();
+    return !oppositeKeywords.some((kw) => nameLower.includes(kw));
+  });
+  if (looseMatch) return looseMatch;
+
+  // 5. Absolute fallback
+  return voicePool[0];
 }
 
 /**
@@ -78,15 +130,32 @@ function prepareTextForNaturalSpeech(text) {
   );
 }
 
-export default function useSpeechSynthesis() {
+export default function useSpeechSynthesis(initialGender = 'male') {
   const [voices, setVoices] = useState([]);
+  const [gender, setGenderState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('nitya_tts_gender') || initialGender;
+    }
+    return initialGender;
+  });
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const lastSpokenTextRef = useRef('');
   const keepAliveTimerRef = useRef(null);
 
-  // Load available browser voices with high-quality preference
+  // Sync selected voice whenever available voices or gender change
+  const refreshVoice = useCallback((available, targetGender) => {
+    if (!available || available.length === 0) return null;
+    const best = pickVoiceForGender(available, targetGender);
+    if (best) {
+      setSelectedVoice(best);
+      return best;
+    }
+    return null;
+  }, []);
+
+  // Load available browser voices with gender awareness
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
@@ -94,16 +163,46 @@ export default function useSpeechSynthesis() {
       const available = window.speechSynthesis.getVoices();
       if (available && available.length > 0) {
         setVoices(available);
-        const best = pickBestNaturalVoice(available);
-        if (best) {
-          setSelectedVoice(best);
-        }
+        refreshVoice(available, gender);
       }
     };
 
     updateVoices();
     window.speechSynthesis.onvoiceschanged = updateVoices;
-  }, []);
+  }, [gender, refreshVoice]);
+
+  // Set gender and instantly pick the corresponding male or female voice
+  const setGender = useCallback(
+    (newGender) => {
+      setGenderState(newGender);
+      try {
+        localStorage.setItem('nitya_tts_gender', newGender);
+      } catch (_) {}
+
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        const available = window.speechSynthesis.getVoices();
+        const newVoice = refreshVoice(available, newGender);
+        // Stop current speech so new voice takes effect immediately
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+          setIsSpeaking(false);
+        }
+        return newVoice;
+      }
+      return null;
+    },
+    [refreshVoice]
+  );
+
+  const selectVoiceByName = useCallback(
+    (voiceName) => {
+      const found = voices.find((v) => v.name === voiceName);
+      if (found) {
+        setSelectedVoice(found);
+      }
+    },
+    [voices]
+  );
 
   const clearKeepAlive = () => {
     if (keepAliveTimerRef.current) {
@@ -123,7 +222,7 @@ export default function useSpeechSynthesis() {
   }, []);
 
   const speak = useCallback(
-    (text) => {
+    (text, overrideVoice = null, overrideGender = null) => {
       if (!voiceEnabled || !text || typeof window === 'undefined' || !('speechSynthesis' in window)) {
         return;
       }
@@ -136,22 +235,34 @@ export default function useSpeechSynthesis() {
       lastSpokenTextRef.current = text;
 
       const utterance = new SpeechSynthesisUtterance(naturalText);
+      const activeGender = overrideGender || gender;
 
-      // Select voice: user choice -> best natural voice -> default
+      // Select voice: override -> selectedVoice -> auto-pick by gender -> fallback
       const currentVoices = window.speechSynthesis.getVoices();
-      const voiceToUse = selectedVoice || pickBestNaturalVoice(currentVoices) || currentVoices[0];
+      const voiceToUse =
+        overrideVoice ||
+        selectedVoice ||
+        pickVoiceForGender(currentVoices, activeGender) ||
+        currentVoices[0];
+
       if (voiceToUse) {
         utterance.voice = voiceToUse;
       }
 
-      // Natural Human Pacing: 0.98 is relaxed, clear, and confident (avoiding rushed 1.05+ chipmunk tempo)
-      utterance.rate = 0.98;
-      utterance.pitch = 1.0;
+      // Gender-tailored acoustic parameters:
+      // Male (Alex): pitch 0.94, rate 0.97 for deep authoritative resonance
+      // Female (Elena): pitch 1.12, rate 0.98 for crisp, warm, melodic tone
+      if (activeGender === 'female') {
+        utterance.pitch = 1.12;
+        utterance.rate = 0.98;
+      } else {
+        utterance.pitch = 0.94;
+        utterance.rate = 0.97;
+      }
       utterance.volume = 1.0;
 
       utterance.onstart = () => {
         setIsSpeaking(true);
-        // Chrome bug workaround: keep synthesis alive for utterances longer than 14 seconds
         clearKeepAlive();
         keepAliveTimerRef.current = setInterval(() => {
           if (window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -170,17 +281,29 @@ export default function useSpeechSynthesis() {
 
       utterance.onerror = (e) => {
         clearKeepAlive();
-        console.warn('Natural SpeechSynthesis note:', e);
+        console.warn('SpeechSynthesis note:', e);
         setIsSpeaking(false);
       };
 
-      // Resume context if paused before speaking
       if (window.speechSynthesis.paused) {
         window.speechSynthesis.resume();
       }
       window.speechSynthesis.speak(utterance);
     },
-    [voiceEnabled, selectedVoice, stop]
+    [voiceEnabled, selectedVoice, gender, stop]
+  );
+
+  // Quick test voice audio phrase
+  const testVoice = useCallback(
+    (sampleText = null, targetGender = null, targetVoice = null) => {
+      const activeGen = targetGender || gender;
+      const defaultPhrase =
+        activeGen === 'female'
+          ? "Hello! I am Elena Rostova. I will be conducting your interview today."
+          : "Hello! I am Alex Vance. I will be conducting your interview today.";
+      speak(sampleText || defaultPhrase, targetVoice, activeGen);
+    },
+    [gender, speak]
   );
 
   const replay = useCallback(() => {
@@ -189,7 +312,6 @@ export default function useSpeechSynthesis() {
     }
   }, [speak]);
 
-  // Clean up timers on unmount
   useEffect(() => {
     return () => {
       clearKeepAlive();
@@ -199,13 +321,17 @@ export default function useSpeechSynthesis() {
 
   return {
     voices,
+    gender,
+    setGender,
     selectedVoice,
     setSelectedVoice,
+    selectVoiceByName,
     isSpeaking,
     voiceEnabled,
     setVoiceEnabled,
     speak,
     replay,
+    testVoice,
     stop,
   };
 }
