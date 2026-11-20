@@ -68,7 +68,13 @@ export function InterviewProvider({ children }) {
   });
 
   const authenticate = (password) => {
-    if (password === 'NityaCloudtech#2024') {
+    if (!password) return false;
+    const clean = password.trim();
+    if (
+      clean === 'NityaCloudtech#2024' ||
+      clean === 'NityaCloudTech#2024' ||
+      clean.toLowerCase() === 'nityacloudtech#2024'
+    ) {
       setIsAuthenticated(true);
       try {
         sessionStorage.setItem(AUTH_STORAGE_KEY, 'granted');

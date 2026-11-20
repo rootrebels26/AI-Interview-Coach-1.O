@@ -62,6 +62,15 @@ def evaluate_candidate_answer(
     Strictly assigns 0.0 for non-substantive, gibberish, or greeting inputs (like 'hi hi hi').
     """
     trimmed_answer = (candidate_answer or "").strip()
+    is_intro_question = (
+        question_number == 1 or
+        any(k in question_text.lower() for k in [
+            "introduce yourself", "tell us about yourself", "tell me about yourself",
+            "your background", "walk us through your resume", "walk me through your resume",
+            "your journey", "introduction"
+        ])
+    )
+
     if is_non_substantive_response(trimmed_answer):
         # Candidate provided no substantive technical response (e.g. 'hi hi hi', mic check, silence)
         scores = ScoreBreakdown(
@@ -96,16 +105,22 @@ def evaluate_candidate_answer(
         "5. practical_examples (max 15.0 points): Citing real projects, tools, frameworks, languages (e.g. Python, Flask, React, SQL), or past implementation experience.\n"
         "6. answer_structure (max 10.0 points): Organization and flow of thoughts.\n\n"
         "CRITICAL SCORING GUIDANCE:\n"
-        "- Award FAIR, ACCURATE credit for what the candidate actually demonstrated. If the candidate mentions their tech stack (e.g. Python, Flask, PostgreSQL), their experience, or their project architecture, award substantial credit across relevance, communication, practical examples, and technical correctness (typical score: 65-85+ points).\n"
-        "- For introductory or background questions (Question 1 or 2), evaluate how effectively the candidate introduced themselves, their skills, and their project experience. Do NOT expect complex algorithmic proofs for an introduction question!\n"
+        "- Award FAIR, ACCURATE credit for what the candidate actually demonstrated. If the candidate mentions their tech stack (e.g. Python, Flask, PostgreSQL), their experience, or their project architecture, award substantial credit across relevance, communication, practical examples, and technical correctness (typical score: 75-90+ points).\n"
+        "- SPECIAL RULE FOR QUESTION 1 (SELF-INTRODUCTION): This is an introductory presentation. Do NOT expect algorithmic big-O runtime proofs or deep system design trade-offs. If the candidate clearly introduces their name, engineering journey, tools/technologies, or projects, score generously based on clarity, structure, tech breadth, and relevance (score range: 85.0 to 95.0+ points).\n"
         "- ONLY assign 0.0 if the answer is completely blank, pure spam/gibberish, a pure microphone check ('can you hear me'), or a total refusal to answer ('pass', 'skip', 'idk'). If the candidate attempted an answer with real words or background, ALWAYS score based on merit.\n"
         "- Return ONLY valid JSON matching the schema."
+    )
+
+    intro_hint = (
+        "NOTE: Question 1 is a self-introduction. Score generously (85-95+) for clear background, skills, and project summaries without expecting algorithmic design."
+        if is_intro_question else ""
     )
 
     user_prompt = f"""
 TARGET POSITION: {role} at {company} ({difficulty} Level)
 QUESTION #{question_number}: {question_text}
 EXPECTED KEY CONCEPTS: {', '.join(expected_concepts) if expected_concepts else 'Core role fundamentals'}
+{intro_hint}
 
 CANDIDATE'S ACTUAL ANSWER:
 \"\"\"{trimmed_answer}\"\"\"
@@ -156,7 +171,7 @@ Keep all explanations crisp and under 2 sentences to minimize token consumption.
         # If technical correctness and relevance are both negligible, or the answer was an evasion,
         # clamp all scores to 0.0 so no pity or participation points are awarded.
         # Otherwise, award accurate proportional credit for valid engineering explanations.
-        if (t_corr <= 2.0 and rel <= 2.0) or (t_corr + rel <= 5.0):
+        if not is_intro_question and ((t_corr <= 2.0 and rel <= 2.0) or (t_corr + rel <= 5.0)):
             t_corr = 0.0
             rel = 0.0
             comm = 0.0
@@ -164,6 +179,15 @@ Keep all explanations crisp and under 2 sentences to minimize token consumption.
             pe = 0.0
             struct = 0.0
             overall = 0.0
+        elif is_intro_question and len(trimmed_answer.split()) >= 6:
+            # High-credit grading for Question 1 self-introduction
+            t_corr = max(22.0, t_corr)
+            rel = max(18.0, rel)
+            comm = max(13.5, comm)
+            ps = max(12.5, ps)
+            pe = max(12.5, pe)
+            struct = max(8.5, struct)
+            overall = round(t_corr + rel + comm + ps + pe + struct, 1)
         else:
             overall = round(t_corr + rel + comm + ps + pe + struct, 1)
 
@@ -216,7 +240,10 @@ Keep all explanations crisp and under 2 sentences to minimize token consumption.
                 specific_feedback="Explain your technical solution directly to receive an interview evaluation."
             )
 
-        base_score = 60.0 if len(trimmed_answer.split()) > 20 else 35.0
+        if is_intro_question:
+            base_score = 88.0 if len(trimmed_answer.split()) >= 6 else 75.0
+        else:
+            base_score = 75.0 if len(trimmed_answer.split()) > 20 else 55.0
         scores = ScoreBreakdown(
             technical_correctness=round(base_score * 0.25, 1),
             relevance=round(base_score * 0.20, 1),

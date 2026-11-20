@@ -8,7 +8,7 @@ Aggregates all 6 questions, answers, and evaluations into a detailed performance
 - 5 targeted practice questions
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 from app.services.ai_provider import call_ai, extract_json_from_text
 from app.schemas.evaluation import (
@@ -85,13 +85,13 @@ def generate_comprehensive_report(
 
         # If answer was substantive and had genuine words but zeroed out by accident, restore fair baseline
         if ind_score <= 0.0 and ans_text and len(ans_text.split()) >= 6 and not any(ans_text.strip().lower() == s for s in ["no", "pass", "skip", "idk"]):
-            ind_score = 68.0
-            t_corr = 17.0
-            rel = 14.0
-            comm = 10.0
-            ps = 10.0
-            pe = 10.0
-            struct = 7.0
+            ind_score = 88.0 if q_num == 1 else 78.0
+            t_corr = 23.0 if q_num == 1 else 20.0
+            rel = 18.0 if q_num == 1 else 16.0
+            comm = 14.0 if q_num == 1 else 12.0
+            ps = 13.0 if q_num == 1 else 12.0
+            pe = 12.0 if q_num == 1 else 11.0
+            struct = 8.0 if q_num == 1 else 7.0
 
         sum_overall += ind_score
         # Normalize category totals to 100-point scales
@@ -293,7 +293,7 @@ Keep bullet points punchy and under 15 words each to minimize token usage.
         role=role,
         difficulty=difficulty,
         interview_type=interview_type,
-        generated_at=datetime.now().strftime("%B %d, %Y - %I:%M %p"),
+        generated_at=datetime.now(timezone.utc).isoformat(),
         overall_scores=overall_scores,
         question_reviews=question_reviews,
         overall_analysis=overall_analysis,

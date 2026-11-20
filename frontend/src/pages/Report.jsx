@@ -32,6 +32,19 @@ export default function Report() {
       return;
     }
 
+    // Check if report already exists in sessionStorage
+    try {
+      const rawStored = sessionStorage.getItem('nitya_interview_coach_session') || sessionStorage.getItem('ai_interview_coach_session');
+      if (rawStored) {
+        const parsedStored = JSON.parse(rawStored);
+        if (parsedStored?.finalReport && !isFreshInterviewArrival) {
+          setFinalReport(parsedStored.finalReport);
+          setIsLoading(false);
+          return;
+        }
+      }
+    } catch (_) {}
+
     if (!interviewSession && !config && !stateEvals && !stateAnswers && !isFreshInterviewArrival) {
       setIsLoading(false);
       return;
@@ -47,7 +60,7 @@ export default function Report() {
       try {
         let sessionFromStorage = null;
         try {
-          const raw = sessionStorage.getItem('ai_interview_coach_session');
+          const raw = sessionStorage.getItem('nitya_interview_coach_session') || sessionStorage.getItem('ai_interview_coach_session');
           if (raw) sessionFromStorage = JSON.parse(raw)?.interviewSession;
         } catch (_) {}
 
@@ -102,6 +115,18 @@ export default function Report() {
 
     fetchReport();
   }, [finalReport, interviewSession, config, setFinalReport, stateEvals, stateAnswers, stateQuestions, stateSessionId]);
+
+  // Clear session storage when candidate presses the browser Back button to leave report
+  useEffect(() => {
+    const handlePopState = () => {
+      resetSession();
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [resetSession]);
 
   const handleRestart = () => {
     resetSession();
