@@ -144,6 +144,7 @@ export default function useSpeechSynthesis(initialGender = 'male') {
   const lastSpokenTextRef = useRef('');
   const keepAliveTimerRef = useRef(null);
   const fallbackTimeoutRef = useRef(null);
+  const pendingUtteranceRef = useRef(null);
 
   // Sync selected voice whenever available voices or gender change
   const refreshVoice = useCallback((available, targetGender) => {
@@ -165,6 +166,12 @@ export default function useSpeechSynthesis(initialGender = 'male') {
       if (available && available.length > 0) {
         setVoices(available);
         refreshVoice(available, gender);
+        // If an utterance was queued while voices were initializing, execute it now
+        if (pendingUtteranceRef.current) {
+          const { text: queuedText, overrideVoice: qVoice, overrideGender: qGen } = pendingUtteranceRef.current;
+          pendingUtteranceRef.current = null;
+          speak(queuedText, qVoice, qGen);
+        }
       }
     };
 
@@ -232,7 +239,17 @@ export default function useSpeechSynthesis(initialGender = 'male') {
         return;
       }
 
-      stop();
+      // If browser hasn't populated voices yet, remember this prompt so it speaks as soon as voices load
+      const currentVoices = window.speechSynthesis.getVoices();
+      if (!currentVoices || currentVoices.length === 0) {
+        pendingUtteranceRef.current = { text, overrideVoice, overrideGender };
+      }
+
+      clearKeepAlive();
+      if (fallbackTimeoutRef.current) {
+        clearTimeout(fallbackTimeoutRef.current);
+        fallbackTimeoutRef.current = null;
+      }
 
       const naturalText = prepareTextForNaturalSpeech(text);
       if (!naturalText) return;
@@ -243,12 +260,11 @@ export default function useSpeechSynthesis(initialGender = 'male') {
       const activeGender = overrideGender || gender;
 
       // Select voice: override -> selectedVoice -> auto-pick by gender -> fallback
-      const currentVoices = window.speechSynthesis.getVoices();
       const voiceToUse =
         overrideVoice ||
         selectedVoice ||
         pickVoiceForGender(currentVoices, activeGender) ||
-        currentVoices[0];
+        (currentVoices && currentVoices[0]);
 
       if (voiceToUse) {
         utterance.voice = voiceToUse;
@@ -308,12 +324,30 @@ export default function useSpeechSynthesis(initialGender = 'male') {
         setIsSpeaking(false);
       };
 
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
+      const executeUtterance = () => {
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+        try {
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+          window.speechSynthesis.speak(utterance);
+        } catch (err) {
+          console.warn('SpeechSynthesis execution error:', err);
+        }
+      };
+
+      // Workaround for Chromium Bug #637248: calling cancel() and speak() in the same tick cancels the utterance.
+      // If currently speaking, cancel and delay by 40ms to let Chromium cancel IPC clear safely; otherwise speak immediately.
+      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch (_) {}
+        setTimeout(executeUtterance, 40);
+      } else {
+        executeUtterance();
       }
-      window.speechSynthesis.speak(utterance);
     },
-    [voiceEnabled, selectedVoice, gender, stop]
+    [voiceEnabled, selectedVoice, gender]
   );
 
   // Quick test voice audio phrase
@@ -329,11 +363,15 @@ export default function useSpeechSynthesis(initialGender = 'male') {
     [gender, speak]
   );
 
-  const replay = useCallback(() => {
-    if (lastSpokenTextRef.current) {
-      speak(lastSpokenTextRef.current);
-    }
-  }, [speak]);
+  const replay = useCallback(
+    (optionalText = null) => {
+      const textToPlay = optionalText || lastSpokenTextRef.current;
+      if (textToPlay) {
+        speak(textToPlay);
+      }
+    },
+    [speak]
+  );
 
   useEffect(() => {
     return () => {

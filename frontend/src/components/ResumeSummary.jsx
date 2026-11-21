@@ -78,6 +78,11 @@ export default function ResumeSummary({ data: initialData, filename, onReset }) 
   };
 
   const handleConfirmAndProceed = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.resume();
+      } catch (_) {}
+    }
     setResumeData(data);
     navigate('/interview');
   };

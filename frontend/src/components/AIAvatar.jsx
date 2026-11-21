@@ -78,6 +78,19 @@ export default function AIAvatar({
     onPersonaChange?.(nextKey);
   };
 
+  const handleAvatarClick = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+      } catch (_) {}
+    }
+    if (onReplay) {
+      onReplay();
+    }
+  };
+
   return (
     <div className="relative w-full h-full overflow-hidden rounded-2xl bg-gradient-to-b from-[#0b1220] via-[#07111f] to-[#020617] flex items-center justify-center select-none">
       <style>{`
@@ -231,7 +244,7 @@ export default function AIAvatar({
 
         {/* Outer Glowing Portrait Ring Frame */}
         <div
-          onClick={onReplay}
+          onClick={handleAvatarClick}
           title={onReplay ? `Click to hear ${persona.name} speak` : `${persona.name} Interviewer`}
           className={`relative h-44 w-44 sm:h-56 sm:w-56 md:h-64 md:w-64 rounded-full p-1.5 bg-gradient-to-tr ${
             isSpeaking
@@ -644,7 +657,7 @@ export default function AIAvatar({
           {onReplay && (
             <button
               type="button"
-              onClick={onReplay}
+              onClick={handleAvatarClick}
               title="Replay Spoken Question"
               className="shrink-0 flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 hover:border-cyan-400 hover:text-cyan-300 transition-all cursor-pointer"
             >

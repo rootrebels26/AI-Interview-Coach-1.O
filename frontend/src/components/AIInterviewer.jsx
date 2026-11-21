@@ -379,7 +379,31 @@ export default function AIInterviewer({
     }
   }, [currentQuestion, questionNumber]);
 
+  const speakRef = useRef(speak);
+  useEffect(() => {
+    speakRef.current = speak;
+  }, [speak]);
+
   const spokenQuestionKeyRef = useRef('');
+
+  // Resume browser SpeechSynthesis on user interaction if held by autoplay policy
+  useEffect(() => {
+    const unlockSpeech = () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+      }
+    };
+    window.addEventListener('click', unlockSpeech);
+    window.addEventListener('keydown', unlockSpeech);
+    window.addEventListener('touchstart', unlockSpeech);
+    return () => {
+      window.removeEventListener('click', unlockSpeech);
+      window.removeEventListener('keydown', unlockSpeech);
+      window.removeEventListener('touchstart', unlockSpeech);
+    };
+  }, []);
 
   // Automatically speak and present question upon change in conversation stream
   useEffect(() => {
@@ -433,15 +457,11 @@ export default function AIInterviewer({
       ];
     });
 
-    // Micro-delay guarantees audio synthesis readiness and initiates lifelike avatar lip movement
-    const timer = setTimeout(() => {
-      speak(questionText);
-    }, 120);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [currentQuestion, questionNumber, speak, clearTranscript, currentPartTitle, candidateName]);
+    // Directly trigger speech through speakRef so callback reference updates do not drop the call
+    if (speakRef.current) {
+      speakRef.current(questionText);
+    }
+  }, [currentQuestion, questionNumber, clearTranscript, currentPartTitle, candidateName]);
 
   // Clean up speech synthesis ONLY when component unmounts from page
   useEffect(() => {

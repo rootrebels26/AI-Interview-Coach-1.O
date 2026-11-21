@@ -139,6 +139,13 @@ export default function InterviewSetup() {
     e.preventDefault();
     if (!validate()) return;
 
+    // Unlock browser audio/speech activation during user click gesture
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.resume();
+      } catch (_) {}
+    }
+
     const finalCompany = company === 'Other' ? customCompany.trim() : company;
     const finalRole = role === 'Other' ? customRole.trim() : role;
 
