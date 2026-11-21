@@ -95,7 +95,7 @@ const DURATION_OPTIONS = [
 
 export default function InterviewSetup() {
   const navigate = useNavigate();
-  const { config, setConfig } = useInterview();
+  const { config, setConfig, setInterviewSession, setFinalReport } = useInterview();
 
   const [company, setCompany] = useState(config?.company || 'Google');
   const [customCompany, setCustomCompany] = useState(config?.customCompany || '');
@@ -141,6 +141,10 @@ export default function InterviewSetup() {
 
     const finalCompany = company === 'Other' ? customCompany.trim() : company;
     const finalRole = role === 'Other' ? customRole.trim() : role;
+
+    // Reset previous interview session and cached report so a brand-new customized interview begins
+    if (setInterviewSession) setInterviewSession(null);
+    if (setFinalReport) setFinalReport(null);
 
     setConfig({
       company,

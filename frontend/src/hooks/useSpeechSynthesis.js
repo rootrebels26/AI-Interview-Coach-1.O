@@ -143,6 +143,7 @@ export default function useSpeechSynthesis(initialGender = 'male') {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const lastSpokenTextRef = useRef('');
   const keepAliveTimerRef = useRef(null);
+  const fallbackTimeoutRef = useRef(null);
 
   // Sync selected voice whenever available voices or gender change
   const refreshVoice = useCallback((available, targetGender) => {
@@ -213,6 +214,10 @@ export default function useSpeechSynthesis(initialGender = 'male') {
 
   const stop = useCallback(() => {
     clearKeepAlive();
+    if (fallbackTimeoutRef.current) {
+      clearTimeout(fallbackTimeoutRef.current);
+      fallbackTimeoutRef.current = null;
+    }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
@@ -261,6 +266,16 @@ export default function useSpeechSynthesis(initialGender = 'male') {
       }
       utterance.volume = 1.0;
 
+      // Immediately activate face movement and talking animation
+      setIsSpeaking(true);
+
+      // Estimated duration based on words (avg ~2.3 words/sec) + 4s buffer
+      const wordCount = naturalText.split(/\s+/).filter(Boolean).length || 10;
+      const estimatedDurationMs = Math.max(3500, Math.round((wordCount / 2.3) * 1000) + 4000);
+      fallbackTimeoutRef.current = setTimeout(() => {
+        setIsSpeaking(false);
+      }, estimatedDurationMs);
+
       utterance.onstart = () => {
         setIsSpeaking(true);
         clearKeepAlive();
@@ -276,11 +291,19 @@ export default function useSpeechSynthesis(initialGender = 'male') {
 
       utterance.onend = () => {
         clearKeepAlive();
+        if (fallbackTimeoutRef.current) {
+          clearTimeout(fallbackTimeoutRef.current);
+          fallbackTimeoutRef.current = null;
+        }
         setIsSpeaking(false);
       };
 
       utterance.onerror = (e) => {
         clearKeepAlive();
+        if (fallbackTimeoutRef.current) {
+          clearTimeout(fallbackTimeoutRef.current);
+          fallbackTimeoutRef.current = null;
+        }
         console.warn('SpeechSynthesis note:', e);
         setIsSpeaking(false);
       };

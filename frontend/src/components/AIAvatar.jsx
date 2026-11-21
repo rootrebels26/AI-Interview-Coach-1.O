@@ -101,33 +101,33 @@ export default function AIAvatar({
         }
         @keyframes cartoonMouthSpeak {
           0%, 100% {
-            transform: scale(1, 0.4) translateY(0px);
-            opacity: 0.7;
+            transform: scale(1, 0.45);
+            opacity: 0.85;
           }
-          15% {
-            transform: scale(1.15, 1.4) translateY(1px);
-            opacity: 0.95;
-          }
-          30% {
-            transform: scale(0.95, 0.6) translateY(0px);
-            opacity: 0.8;
-          }
-          50% {
-            transform: scale(1.2, 1.8) translateY(2px);
+          18% {
+            transform: scale(1.15, 1.4);
             opacity: 1;
           }
-          70% {
-            transform: scale(1.05, 1.2) translateY(1px);
+          36% {
+            transform: scale(0.9, 0.6);
             opacity: 0.9;
           }
-          85% {
-            transform: scale(0.9, 0.5) translateY(0px);
-            opacity: 0.75;
+          54% {
+            transform: scale(1.22, 1.7);
+            opacity: 1;
+          }
+          72% {
+            transform: scale(1.05, 1.15);
+            opacity: 0.95;
+          }
+          88% {
+            transform: scale(0.95, 0.55);
+            opacity: 0.85;
           }
         }
         @keyframes cartoonEyebrowSpeak {
           0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-2.2px); }
+          50% { transform: translateY(-2px); }
         }
         @keyframes soundwavePulseRing {
           0% { transform: scale(0.96); opacity: 0.7; }
@@ -135,25 +135,34 @@ export default function AIAvatar({
           100% { transform: scale(1.32); opacity: 0; }
         }
         .anim-cartoon-head {
+          transform-box: view-box;
           transform-origin: 100px 140px;
-          animation: cartoonBreathing 4.8s ease-in-out infinite;
+          animation: cartoonBreathing 4.5s ease-in-out infinite;
         }
         .anim-cartoon-head.listening {
+          transform-box: view-box;
+          transform-origin: 100px 140px;
           animation: cartoonListeningNod 3.4s ease-in-out infinite;
         }
         .anim-cartoon-head.analyzing {
+          transform-box: view-box;
+          transform-origin: 100px 140px;
           animation: cartoonAnalyzingTilt 4.2s ease-in-out infinite;
         }
         .anim-cartoon-eyeblink {
-          transform-origin: 100px 88px;
+          transform-box: fill-box;
+          transform-origin: center;
           animation: cartoonEyeBlink 4.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
         .anim-cartoon-mouth-speak {
-          transform-origin: 100px 108px;
-          animation: cartoonMouthSpeak 0.32s ease-in-out infinite;
+          transform-box: fill-box;
+          transform-origin: center;
+          animation: cartoonMouthSpeak 0.28s ease-in-out infinite;
         }
         .anim-cartoon-eyebrow-speak {
-          animation: cartoonEyebrowSpeak 0.65s ease-in-out infinite;
+          transform-box: fill-box;
+          transform-origin: center;
+          animation: cartoonEyebrowSpeak 0.6s ease-in-out infinite;
         }
         .anim-wave-ring-1 {
           animation: soundwavePulseRing 1.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
@@ -222,6 +231,8 @@ export default function AIAvatar({
 
         {/* Outer Glowing Portrait Ring Frame */}
         <div
+          onClick={onReplay}
+          title={onReplay ? `Click to hear ${persona.name} speak` : `${persona.name} Interviewer`}
           className={`relative h-44 w-44 sm:h-56 sm:w-56 md:h-64 md:w-64 rounded-full p-1.5 bg-gradient-to-tr ${
             isSpeaking
               ? 'from-cyan-400 via-sky-500 to-blue-600 shadow-[0_0_40px_rgba(56,189,248,0.5)]'
@@ -230,7 +241,7 @@ export default function AIAvatar({
               : isAnalyzing
               ? 'from-purple-400 via-indigo-500 to-cyan-500 shadow-[0_0_35px_rgba(168,85,247,0.4)]'
               : `${persona.accentGrad} shadow-[0_0_30px_rgba(6,182,212,0.3)]`
-          } transition-all duration-500`}
+          } transition-all duration-500 ${onReplay ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
         >
           {/* Inner Studio Viewport */}
           <div className="h-full w-full rounded-full overflow-hidden bg-[#070e1a] border-2 border-slate-900 relative shadow-inner flex items-center justify-center">

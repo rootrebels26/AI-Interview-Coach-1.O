@@ -9,15 +9,21 @@ export default function Interview() {
   const navigate = useNavigate();
   const { config, resumeData, interviewSession, setInterviewSession, resetSession, setFinalReport } = useInterview();
 
-  const [isLoading, setIsLoading] = useState(!interviewSession);
+  const isMatchingSession =
+    interviewSession &&
+    interviewSession.questions?.length >= 6 &&
+    interviewSession.company?.trim().toLowerCase() === config?.finalCompany?.trim().toLowerCase() &&
+    interviewSession.role?.trim().toLowerCase() === config?.finalRole?.trim().toLowerCase();
+
+  const [isLoading, setIsLoading] = useState(!isMatchingSession);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [questions, setQuestions] = useState(interviewSession?.questions || []);
+  const [questions, setQuestions] = useState(isMatchingSession ? interviewSession.questions : []);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [sessionEvaluations, setSessionEvaluations] = useState(interviewSession?.evaluations || []);
-  const [sessionAnswers, setSessionAnswers] = useState(interviewSession?.answers || []);
-  const sessionEvaluationsRef = useRef(interviewSession?.evaluations || []);
-  const sessionAnswersRef = useRef(interviewSession?.answers || []);
+  const [sessionEvaluations, setSessionEvaluations] = useState(isMatchingSession ? (interviewSession.evaluations || []) : []);
+  const [sessionAnswers, setSessionAnswers] = useState(isMatchingSession ? (interviewSession.answers || []) : []);
+  const sessionEvaluationsRef = useRef(isMatchingSession ? (interviewSession.evaluations || []) : []);
+  const sessionAnswersRef = useRef(isMatchingSession ? (interviewSession.answers || []) : []);
   const initializedRef = useRef(false);
 
   const handleRestartInterview = () => {
@@ -33,7 +39,14 @@ export default function Interview() {
       return;
     }
 
-    if (interviewSession && interviewSession.questions?.length >= 6) {
+    // Only reuse session if it matches the current company and role perfectly
+    const matchesCurrentConfig =
+      interviewSession &&
+      interviewSession.questions?.length >= 6 &&
+      interviewSession.company?.trim().toLowerCase() === config.finalCompany?.trim().toLowerCase() &&
+      interviewSession.role?.trim().toLowerCase() === config.finalRole?.trim().toLowerCase();
+
+    if (matchesCurrentConfig) {
       setQuestions(interviewSession.questions);
       setIsLoading(false);
       return;

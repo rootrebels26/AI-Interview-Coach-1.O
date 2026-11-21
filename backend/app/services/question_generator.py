@@ -335,13 +335,19 @@ def build_interview_prompt_context(
     prof = get_role_profile(role)
     scraped_context = "\n".join([f"- {q}" for q in (scraped_questions or [])[:6]]) or "General industry interview standards"
 
+    jd_clean = (job_description or "").strip()
+    jd_block = f"""
+TARGET JOB DESCRIPTION & SPECIFIC ROLE REQUIREMENTS:
+{jd_clean[:1800]}
+""" if jd_clean else ""
+
     return f"""
 INTERVIEW PARAMETERS:
 - Target Company: {company}
 - Target Job Role: {role}
 - Interview Type: {interview_type}
 - Difficulty Level: {difficulty}
-
+{jd_block}
 ROLE TECHNICAL PILLARS & ARCHITECTURAL FOCUS:
 - Core Pillars: {prof['core_pillars']}
 - Internals Focus: {prof['internals_focus']}
@@ -383,6 +389,15 @@ def generate_interview_questions(
     highlights = extract_candidate_highlights(resume)
     prof = get_role_profile(role)
 
+    # If job description is provided, dynamically enrich core pillars with key terms from JD
+    jd_clean = (job_description or "").strip()
+    if jd_clean:
+        # Extract potential technical keywords / responsibilities
+        key_lines = [line.strip("-•* \t") for line in jd_clean.splitlines() if len(line.strip()) > 8]
+        if key_lines:
+            prof = dict(prof)
+            prof["core_pillars"] = f"{key_lines[0][:100]} | {prof['core_pillars']}"
+
     # 3. Build AI context
     context = build_interview_prompt_context(
         company=company,
@@ -395,13 +410,14 @@ def generate_interview_questions(
     )
 
     system_prompt = (
-        "You are an expert technical interviewer conducting a realistic mock interview. "
+        f"You are an expert technical interviewer at {company} conducting an authentic mock interview for the {role} position. "
         "CRITICAL RULES:\n"
         "1. Every question must directly probe the candidate's target role depth and cite the candidate's actual resume items (named projects, stated technologies, and work background).\n"
-        "2. In a real interview, you ask MORE THAN ONE QUESTION per topic (e.g. multiple behavioral questions probing STAR methodology, "
+        "2. If a TARGET JOB DESCRIPTION is provided, prioritize asking about the exact requirements, tech stack, and responsibilities stated in it.\n"
+        "3. In a real interview, you ask MORE THAN ONE QUESTION per topic (e.g. multiple behavioral questions probing STAR methodology, "
         "multiple deep technical probes into role internals, and multiple case study questions).\n"
-        "3. Each question MUST connect conversationally from the previous topic (connected question chain).\n"
-        "4. Drill deep into the target role's internals, edge-case failure modes, and architectural tradeoffs.\n"
+        "4. Each question MUST connect conversationally from the previous topic (connected question chain).\n"
+        "5. Drill deep into the target role's internals, edge-case failure modes, and architectural tradeoffs.\n"
         "Return ONLY a valid JSON object with a 'questions' array. Keep each question crisp and under 25 words."
     )
 

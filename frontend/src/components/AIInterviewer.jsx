@@ -379,57 +379,76 @@ export default function AIInterviewer({
     }
   }, [currentQuestion, questionNumber]);
 
+  const spokenQuestionKeyRef = useRef('');
+
   // Automatically speak and present question upon change in conversation stream
   useEffect(() => {
-    if (currentQuestion) {
-      setEvaluationResult(null);
-      clearTranscript();
-      setInputText('');
-      setTurnCount(1);
-      setActiveHint(null);
-      let questionText = currentQuestion.spoken_prompt || currentQuestion.question_text;
-      // Clean any accidental "Online" salutation
-      questionText = questionText.replace(/,\s*Online[!.]?/gi, '!');
-      if (questionNumber === 1 && candidateName) {
-        const firstName = candidateName.split(' ')[0];
-        if (!invalidNamePattern.test(firstName.toLowerCase()) && !questionText.includes(firstName)) {
-          questionText = questionText.replace(/^(Welcome to [^,!?]+)[!.]?/i, `$1, ${firstName}!`);
-        }
-      } else if (questionNumber > 1 && candidateName) {
-        // Enforce zero repetitive name callouts on subsequent questions (no "Sagnik, Sagnik, Sagnik")
-        const firstName = candidateName.split(' ')[0];
-        if (!invalidNamePattern.test(firstName.toLowerCase())) {
-          const nameRegex = new RegExp(`^(?:hi|hello|hey|welcome|thanks|thank you)?\\s*,?\\s*${firstName}\\s*[,!:\\-]\\s*`, 'i');
-          questionText = questionText.replace(nameRegex, '');
-        }
-      }
-      setLastSpokenText(questionText);
+    if (!currentQuestion) return;
 
-      // Add interviewer opening question to chat if not already present
-      setMessages((prev) => {
-        if (prev.length > 0 && prev[prev.length - 1].text === questionText) {
-          return prev;
-        }
-        return [
-          ...prev,
-          {
-            id: `q-${questionNumber}-${Date.now()}`,
-            role: 'interviewer',
-            text: questionText,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isOpening: true,
-            partTitle: currentPartTitle,
-            questionNumber: questionNumber,
-          },
-        ];
-      });
-
-      speak(questionText);
+    const currentKey = `${questionNumber}_${currentQuestion.question_text || ''}`;
+    if (spokenQuestionKeyRef.current === currentKey) {
+      return;
     }
+    spokenQuestionKeyRef.current = currentKey;
+
+    setEvaluationResult(null);
+    clearTranscript();
+    setInputText('');
+    setTurnCount(1);
+    setActiveHint(null);
+    let questionText = currentQuestion.spoken_prompt || currentQuestion.question_text;
+    // Clean any accidental "Online" salutation
+    questionText = questionText.replace(/,\s*Online[!.]?/gi, '!');
+    if (questionNumber === 1 && candidateName) {
+      const firstName = candidateName.split(' ')[0];
+      if (!invalidNamePattern.test(firstName.toLowerCase()) && !questionText.includes(firstName)) {
+        questionText = questionText.replace(/^(Welcome to [^,!?]+)[!.]?/i, `$1, ${firstName}!`);
+      }
+    } else if (questionNumber > 1 && candidateName) {
+      // Enforce zero repetitive name callouts on subsequent questions (no "Sagnik, Sagnik, Sagnik")
+      const firstName = candidateName.split(' ')[0];
+      if (!invalidNamePattern.test(firstName.toLowerCase())) {
+        const nameRegex = new RegExp(`^(?:hi|hello|hey|welcome|thanks|thank you)?\\s*,?\\s*${firstName}\\s*[,!:\\-]\\s*`, 'i');
+        questionText = questionText.replace(nameRegex, '');
+      }
+    }
+    setLastSpokenText(questionText);
+
+    // Add interviewer opening question to chat if not already present
+    setMessages((prev) => {
+      if (prev.length > 0 && prev[prev.length - 1].text === questionText) {
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          id: `q-${questionNumber}-${Date.now()}`,
+          role: 'interviewer',
+          text: questionText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isOpening: true,
+          partTitle: currentPartTitle,
+          questionNumber: questionNumber,
+        },
+      ];
+    });
+
+    // Micro-delay guarantees audio synthesis readiness and initiates lifelike avatar lip movement
+    const timer = setTimeout(() => {
+      speak(questionText);
+    }, 120);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [currentQuestion, questionNumber, speak, clearTranscript, currentPartTitle, candidateName]);
+
+  // Clean up speech synthesis ONLY when component unmounts from page
+  useEffect(() => {
     return () => {
       stopSpeaking();
     };
-  }, [currentQuestion, questionNumber, speak, stopSpeaking, clearTranscript, currentPartTitle]);
+  }, [stopSpeaking]);
 
   // Handle opening the non-advancing Hint popup modal
   const handleOpenHint = async () => {
