@@ -72,11 +72,11 @@ def extract_candidate_highlights(resume: Optional[Any]) -> Dict[str, Any]:
         (resume.get("candidate_name") if isinstance(resume, dict) else None) or
         ""
     ).strip()
-    if any(kw in cand_name.lower() for kw in ["candidate", "unknown", "n/a", "none", "null", "online", "developer", "engineer", "portal", "system", "viva", "exam"]):
+    if any(kw in cand_name.lower() for kw in ["candidate", "unknown", "n/a", "none", "null", "online", "developer", "engineer", "portal", "system", "viva", "exam", "field"]):
         cand_name = ""
 
     cand_first_name = cand_name.split()[0].capitalize() if cand_name else ""
-    if any(kw in cand_first_name.lower() for kw in ["online", "candidate", "unknown", "developer", "engineer", "portal", "system", "viva", "exam"]):
+    if any(kw in cand_first_name.lower() for kw in ["online", "candidate", "unknown", "developer", "engineer", "portal", "system", "viva", "exam", "field"]):
         cand_first_name = ""
     summary_val = getattr(resume, "summary", "") or (resume.get("summary") if isinstance(resume, dict) else "")
 

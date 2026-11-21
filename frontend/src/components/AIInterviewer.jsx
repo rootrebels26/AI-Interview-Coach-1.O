@@ -83,6 +83,7 @@ export default function AIInterviewer({
 
   const {
     isSpeaking,
+    isAutoplayBlocked,
     voiceEnabled,
     setVoiceEnabled,
     speak,
@@ -350,7 +351,7 @@ export default function AIInterviewer({
   }, [isTimeUp, speak]);
 
   const candidateRawName = resumeData?.candidate_name?.trim() || '';
-  const invalidNamePattern = /^(candidate|unknown|n\/a|none|null|online|viva|portal|examination|exam|system|developer|engineer|software|app|dashboard|resume|user)$/i;
+  const invalidNamePattern = /^(candidate|unknown|n\/a|none|null|online|viva|portal|examination|exam|system|developer|engineer|software|app|dashboard|resume|user|field|email)$/i;
   const isRealCandidateName = Boolean(
     candidateRawName &&
     candidateRawName.length >= 2 &&
@@ -393,6 +394,10 @@ export default function AIInterviewer({
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
         }
+        // If speech was blocked on mount by autoplay, retry immediately upon user interaction
+        if (isAutoplayBlocked && speakRef.current && lastSpokenText) {
+          speakRef.current(lastSpokenText);
+        }
       }
     };
     window.addEventListener('click', unlockSpeech);
@@ -403,7 +408,7 @@ export default function AIInterviewer({
       window.removeEventListener('keydown', unlockSpeech);
       window.removeEventListener('touchstart', unlockSpeech);
     };
-  }, []);
+  }, [isAutoplayBlocked, lastSpokenText]);
 
   // Automatically speak and present question upon change in conversation stream
   useEffect(() => {
@@ -1172,6 +1177,25 @@ export default function AIInterviewer({
               onPersonaChange={handlePersonaChange}
               onReplay={() => replay(lastSpokenText)}
             />
+
+            {/* Prominent Autoplay Blocked Banner */}
+            {isAutoplayBlocked && (
+              <div className="absolute top-4 left-4 z-30 animate-fadeIn">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (speakRef.current && lastSpokenText) {
+                      speakRef.current(lastSpokenText);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-xs font-bold shadow-xl shadow-amber-500/40 backdrop-blur-sm transition-all cursor-pointer animate-pulse active:scale-95"
+                  title="Click to enable interviewer audio"
+                >
+                  <Volume2 className="h-4 w-4" />
+                  <span>Click to Listen / Unmute AI</span>
+                </button>
+              </div>
+            )}
 
             {/* Prominent Mute AI Button during speech */}
             {isSpeaking && (

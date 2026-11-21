@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useInterview } from '../context/InterviewContext';
 import interviewApi from '../services/interviewApi';
 import AIInterviewer from '../components/AIInterviewer';
-import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, CheckCircle2, Mic, ArrowRight } from 'lucide-react';
 
 export default function Interview() {
   const navigate = useNavigate();
@@ -22,6 +22,9 @@ export default function Interview() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionEvaluations, setSessionEvaluations] = useState(isMatchingSession ? (interviewSession.evaluations || []) : []);
   const [sessionAnswers, setSessionAnswers] = useState(isMatchingSession ? (interviewSession.answers || []) : []);
+  const [hasJoinedStudio, setHasJoinedStudio] = useState(
+    Boolean(isMatchingSession && (interviewSession.answers?.length > 0 || interviewSession.evaluations?.length > 0))
+  );
   const sessionEvaluationsRef = useRef(isMatchingSession ? (interviewSession.evaluations || []) : []);
   const sessionAnswersRef = useRef(isMatchingSession ? (interviewSession.answers || []) : []);
   const initializedRef = useRef(false);
@@ -30,6 +33,26 @@ export default function Interview() {
     if (setFinalReport) setFinalReport(null);
     resetSession();
     navigate('/setup');
+  };
+
+  const handleJoinStudio = () => {
+    // 1. Prime browser SpeechSynthesis inside direct user click gesture
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.resume();
+      } catch (_) {}
+    }
+    // 2. Unlock Web Audio Context
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        ctx.resume();
+      }
+    } catch (_) {}
+
+    setHasJoinedStudio(true);
   };
 
   // Initialize or resume interview session
@@ -270,6 +293,65 @@ export default function Interview() {
           <ArrowLeft className="h-3.5 w-3.5" />
           <span>Return to Setup</span>
         </button>
+      </div>
+    );
+  }
+
+  // Pre-Studio Green Room: Ensures fresh browser user-gesture token for 100% reliable voice synthesis autoplay
+  if (!hasJoinedStudio && questions.length > 0) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-[#f5f9ff] text-[#0b1220] dark:bg-[#07111f] dark:text-slate-100 transition-colors duration-200">
+        <div className="w-full max-w-xl rounded-3xl border border-blue-200/80 dark:border-cyan-500/30 bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-xl p-6 sm:p-8 text-center animate-fadeIn">
+          {/* Status Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold mb-5 tracking-wide">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>AI VIRTUAL INTERVIEW STUDIO READY</span>
+          </div>
+
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">
+            Welcome to {config?.finalCompany || 'Your'} Interview
+          </h2>
+          <p className="text-sm font-semibold text-blue-600 dark:text-cyan-400 mb-6">
+            {config?.finalRole || 'Software Engineer'} • {config?.interviewType || 'Technical Interview'}
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8 text-left">
+            <div className="p-3.5 rounded-2xl bg-blue-50/80 dark:bg-slate-800/60 border border-blue-100 dark:border-slate-700/60 flex items-start gap-3">
+              <div className="h-8 w-8 rounded-xl bg-blue-500/10 dark:bg-cyan-500/20 text-blue-600 dark:text-cyan-400 flex items-center justify-center shrink-0 mt-0.5">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Lead Interviewer Online</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Alex Vance conducting Round 1</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-blue-50/80 dark:bg-slate-800/60 border border-blue-100 dark:border-slate-700/60 flex items-start gap-3">
+              <div className="h-8 w-8 rounded-xl bg-blue-500/10 dark:bg-cyan-500/20 text-blue-600 dark:text-cyan-400 flex items-center justify-center shrink-0 mt-0.5">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Questions Prepared</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">{questions.length} Tailored Technical & Coding probes</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Enter Studio Button */}
+          <button
+            type="button"
+            onClick={handleJoinStudio}
+            className="w-full group relative inline-flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 dark:from-cyan-500 dark:via-blue-600 dark:to-cyan-600 px-6 py-4 text-base font-bold text-white shadow-xl shadow-blue-500/25 dark:shadow-cyan-500/25 transition-all duration-200 cursor-pointer transform hover:scale-[1.01] active:scale-[0.99]"
+          >
+            <Mic className="h-5 w-5" />
+            <span>Join Interview Studio & Start</span>
+            <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+          </button>
+
+          <p className="mt-4 text-[11px] text-slate-400 dark:text-slate-500">
+            Clicking activates the interviewer's voice and connects audio directly in your browser.
+          </p>
+        </div>
       </div>
     );
   }

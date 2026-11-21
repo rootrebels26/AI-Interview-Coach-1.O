@@ -141,10 +141,13 @@ export default function useSpeechSynthesis(initialGender = 'male') {
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [isAutoplayBlocked, setIsAutoplayBlocked] = useState(false);
   const lastSpokenTextRef = useRef('');
   const keepAliveTimerRef = useRef(null);
   const fallbackTimeoutRef = useRef(null);
+  const autoplayCheckTimerRef = useRef(null);
   const pendingUtteranceRef = useRef(null);
+  const speakRef = useRef(null);
 
   // Sync selected voice whenever available voices or gender change
   const refreshVoice = useCallback((available, targetGender) => {
@@ -167,10 +170,10 @@ export default function useSpeechSynthesis(initialGender = 'male') {
         setVoices(available);
         refreshVoice(available, gender);
         // If an utterance was queued while voices were initializing, execute it now
-        if (pendingUtteranceRef.current) {
+        if (pendingUtteranceRef.current && speakRef.current) {
           const { text: queuedText, overrideVoice: qVoice, overrideGender: qGen } = pendingUtteranceRef.current;
           pendingUtteranceRef.current = null;
-          speak(queuedText, qVoice, qGen);
+          speakRef.current(queuedText, qVoice, qGen);
         }
       }
     };
@@ -243,12 +246,17 @@ export default function useSpeechSynthesis(initialGender = 'male') {
       const currentVoices = window.speechSynthesis.getVoices();
       if (!currentVoices || currentVoices.length === 0) {
         pendingUtteranceRef.current = { text, overrideVoice, overrideGender };
+        return;
       }
 
       clearKeepAlive();
       if (fallbackTimeoutRef.current) {
         clearTimeout(fallbackTimeoutRef.current);
         fallbackTimeoutRef.current = null;
+      }
+      if (autoplayCheckTimerRef.current) {
+        clearTimeout(autoplayCheckTimerRef.current);
+        autoplayCheckTimerRef.current = null;
       }
 
       const naturalText = prepareTextForNaturalSpeech(text);
@@ -282,9 +290,6 @@ export default function useSpeechSynthesis(initialGender = 'male') {
       }
       utterance.volume = 1.0;
 
-      // Immediately activate face movement and talking animation
-      setIsSpeaking(true);
-
       // Estimated duration based on words (avg ~2.3 words/sec) + 4s buffer
       const wordCount = naturalText.split(/\s+/).filter(Boolean).length || 10;
       const estimatedDurationMs = Math.max(3500, Math.round((wordCount / 2.3) * 1000) + 4000);
@@ -292,7 +297,19 @@ export default function useSpeechSynthesis(initialGender = 'male') {
         setIsSpeaking(false);
       }, estimatedDurationMs);
 
+      // Verify if utterance starts; if not within 400ms, mark as blocked by autoplay policy
+      autoplayCheckTimerRef.current = setTimeout(() => {
+        if (!window.speechSynthesis.speaking) {
+          setIsAutoplayBlocked(true);
+        }
+      }, 400);
+
       utterance.onstart = () => {
+        if (autoplayCheckTimerRef.current) {
+          clearTimeout(autoplayCheckTimerRef.current);
+          autoplayCheckTimerRef.current = null;
+        }
+        setIsAutoplayBlocked(false);
         setIsSpeaking(true);
         clearKeepAlive();
         keepAliveTimerRef.current = setInterval(() => {
@@ -319,6 +336,10 @@ export default function useSpeechSynthesis(initialGender = 'male') {
         if (fallbackTimeoutRef.current) {
           clearTimeout(fallbackTimeoutRef.current);
           fallbackTimeoutRef.current = null;
+        }
+        if (autoplayCheckTimerRef.current) {
+          clearTimeout(autoplayCheckTimerRef.current);
+          autoplayCheckTimerRef.current = null;
         }
         console.warn('SpeechSynthesis note:', e);
         setIsSpeaking(false);
@@ -374,8 +395,15 @@ export default function useSpeechSynthesis(initialGender = 'male') {
   );
 
   useEffect(() => {
+    speakRef.current = speak;
+  }, [speak]);
+
+  useEffect(() => {
     return () => {
       clearKeepAlive();
+      if (autoplayCheckTimerRef.current) {
+        clearTimeout(autoplayCheckTimerRef.current);
+      }
       stop();
     };
   }, [stop]);
@@ -388,6 +416,7 @@ export default function useSpeechSynthesis(initialGender = 'male') {
     setSelectedVoice,
     selectVoiceByName,
     isSpeaking,
+    isAutoplayBlocked,
     voiceEnabled,
     setVoiceEnabled,
     speak,
